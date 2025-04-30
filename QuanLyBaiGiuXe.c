@@ -5,7 +5,18 @@
 #include <time.h>
 #include <ctype.h>
 #include <stdbool.h>
-#define HOURLY_RATE 5000  
+#define HOURLY_RATE 5000 
+#define DOANH_THU_FILE "doanh_thu_theo_ngay.txt" 
+#ifndef DOANHTHU_H
+#define DOANHTHU_H
+
+void cap_nhat_doanh_thu_ngay(int so_tien);
+void thong_ke_doanh_thu_theo_ngay();
+int tinh_tong_doanh_thu_thang(int thang, int nam);
+int tinh_tong_doanh_thu_nam(int nam);
+void hien_thi_doanh_thu_treeview(GtkTreeView *treeview);
+
+#endif
 
 typedef struct {
     char license_plate[20];   
@@ -26,6 +37,7 @@ void load_history_data(GtkListStore *store);
 int num_vehicles = 0;
 double doanh_thu = 0;  
 GtkWidget *label_stats; 
+GtkWidget *treeview_doanh_thu;
 void Cal_total(double fee);  
 void load_treeviews(SharedData *shared_data);
 int has_available_slot();
@@ -130,6 +142,125 @@ void save_parking_data() {
     fclose(f);
 }
 
+void cap_nhat_doanh_thu_ngay(int so_tien) {
+    FILE *file = fopen(DOANH_THU_FILE, "r+");
+    if (!file) file = fopen(DOANH_THU_FILE, "w+");
+
+    char date_str[20];
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    strftime(date_str, sizeof(date_str), "%Y-%m-%d", t);
+
+    char line[100];
+    int found = 0;
+    FILE *temp = fopen("temp.txt", "w");
+
+    while (fgets(line, sizeof(line), file)) {
+        char date[20]; int tien;
+        sscanf(line, "%[^:]: %d", date, &tien);
+        if (strcmp(date, date_str) == 0) {
+            fprintf(temp, "%s: %d\n", date, tien + so_tien);
+            found = 1;
+        } else {
+            fputs(line, temp);
+        }
+    }
+
+    if (!found) {
+        fprintf(temp, "%s: %d\n", date_str, so_tien);
+    }
+
+    fclose(file);
+    fclose(temp);
+    remove(DOANH_THU_FILE);
+    rename("temp.txt", DOANH_THU_FILE);
+}
+
+void thong_ke_doanh_thu_theo_ngay() {
+    FILE *file = fopen(DOANH_THU_FILE, "r");
+    if (!file) {
+        printf("Chua co du lieu doanh thu.\n");
+        return;
+    }
+    printf("\n== Lich su doanh thu theo ngay ==\n");
+    char line[100];
+    while (fgets(line, sizeof(line), file)) {
+        printf("%s", line);
+    }
+    fclose(file);
+}
+
+int tinh_tong_doanh_thu_thang(int thang, int nam) {
+    FILE *file = fopen(DOANH_THU_FILE, "r");
+    if (!file) return 0;
+
+    char date[20], line[100];
+    int tong = 0, t, y, d, value;
+    while (fgets(line, sizeof(line), file)) {
+        sscanf(line, "%[^:]: %d", date, &value);
+        sscanf(date, "%d-%d-%d", &y, &t, &d);
+        if (t == thang && y == nam) {
+            tong += value;
+        }
+    }
+    fclose(file);
+    return tong;
+}
+
+int tinh_tong_doanh_thu_nam(int nam) {
+    FILE *file = fopen(DOANH_THU_FILE, "r");
+    if (!file) return 0;
+
+    char date[20], line[100];
+    int tong = 0, t, y, d, value;
+    while (fgets(line, sizeof(line), file)) {
+        sscanf(line, "%[^:]: %d", date, &value);
+        sscanf(date, "%d-%d-%d", &y, &t, &d);
+        if (y == nam) {
+            tong += value;
+        }
+    }
+    fclose(file);
+    return tong;
+}
+
+void hien_thi_doanh_thu_treeview(GtkTreeView *treeview) {
+    GtkListStore *store;
+    GtkTreeIter iter;
+    store = gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_INT);
+
+    FILE *file = fopen(DOANH_THU_FILE, "r");
+    if (!file) return;
+
+    char line[100], date[20];
+    int value;
+    while (fgets(line, sizeof(line), file)) {
+        sscanf(line, "%[^:]: %d", date, &value);
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter, 0, date, 1, value, -1);
+    }
+    fclose(file);
+
+    gtk_tree_view_set_model(treeview, GTK_TREE_MODEL(store));
+    g_object_unref(store);
+
+    GtkCellRenderer *renderer;
+    GtkTreeViewColumn *column;
+
+    column = gtk_tree_view_get_column(treeview, 0);
+    if (!column) {
+        renderer = gtk_cell_renderer_text_new();
+        column = gtk_tree_view_column_new_with_attributes("Ngày", renderer, "text", 0, NULL);
+        gtk_tree_view_append_column(treeview, column);
+    }
+
+    column = gtk_tree_view_get_column(treeview, 1);
+    if (!column) {
+        renderer = gtk_cell_renderer_text_new();
+        column = gtk_tree_view_column_new_with_attributes("Doanh thu (VND)", renderer, "text", 1, NULL);
+        gtk_tree_view_append_column(treeview, column);
+    }
+}
 
 // Kiểm tra còn chỗ không
 int has_available_slot() {
@@ -191,6 +322,7 @@ update_statistics_display();
 
     // === TAB 3: Bãi xe ===
 GtkWidget *tab_label3 = gtk_label_new("Bãi xe");
+	
 
 // Tạo notebook con để chứa các tầng
 GtkWidget *nested_notebook = gtk_notebook_new();
@@ -240,6 +372,14 @@ gtk_widget_set_hexpand(scroll_tang2, TRUE);
 
 gtk_notebook_append_page(GTK_NOTEBOOK(nested_notebook), scroll_tang2, tab_tang2);
 
+//=== TAB 4: Doanh thu ===
+GtkWidget *tab_doanh_thu = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+treeview_doanh_thu = gtk_tree_view_new();
+
+gtk_box_pack_start(GTK_BOX(tab_doanh_thu), treeview_doanh_thu, TRUE, TRUE, 0);
+hien_thi_doanh_thu_treeview(GTK_TREE_VIEW(treeview_doanh_thu));
+
+gtk_notebook_append_page(GTK_NOTEBOOK(notebook), tab_doanh_thu, gtk_label_new("Doanh thu"));
 
 
 // Cuối cùng: Thêm notebook con vào tab chính "Bãi xe"
@@ -622,6 +762,8 @@ static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data) {
             int total_hours = (elapsed_seconds + 3599) / 3600;
             veh->fee = total_hours * HOURLY_RATE;
             Cal_total(veh->fee); // Cộng doanh thu
+            cap_nhat_doanh_thu_ngay(veh->fee);
+            hien_thi_doanh_thu_treeview(GTK_TREE_VIEW(treeview_doanh_thu));
             log_action(plate_input, "out",veh->fee);
 			update_statistics_display();
 
