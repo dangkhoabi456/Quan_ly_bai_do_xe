@@ -5,6 +5,7 @@
 #include <ctype.h>
 
 #define don_gia_theo_gio 5000  // đơn giá gửi xe mỗi giờ
+#define so_luong_cho 50   // So luong cho trong bai giu xe cua moi tang
 
 typedef struct {
     char bien_so_xe[20];
@@ -22,7 +23,6 @@ void tong_doanh_thu(double phi);
 void luu_doanh_thu();
 void mo_doanh_thu();
 void cap_nhat_file_bai_do();
-
 
 void doc_file_bai_do() {
     FILE *tep = fopen("parking_data.txt", "r");
@@ -48,7 +48,7 @@ void doc_file_bai_do() {
         thoi_gian.tm_sec = giay;
 
         tam.thoi_gian_vao = mktime(&thoi_gian);
-        
+
         if (so_luong_xe < so_luong_cho) {
             danh_sach_phuong_tien[so_luong_xe++] = tam;
         }
@@ -133,7 +133,7 @@ void them_phuong_tien() {
     xe_moi.bien_so_xe[strcspn(xe_moi.bien_so_xe, "\n")] = '\0';
     kiem_tra_bien_so_xe(xe_moi.bien_so_xe);
 
-    printf("Nhap so tang (1/2): ");
+    printf("Nhap so tang (1/2/3/4): ");
     scanf("%d", &xe_moi.tang);
     getchar();
 
@@ -230,7 +230,7 @@ void thong_ke_xe_ra_vao() {
     char bien_so[20], hanh_dong[10];
     char chuoi_thoi_gian[30];
 
-    while (fscanf(tep, "%s %s %[^\n]", bien_so, hanh_dong, chuoi_thoi_gian) == 3) {
+    while (fscanf(tep, "%s %s %[^]", bien_so, hanh_dong, chuoi_thoi_gian) == 3) {
         if (strcmp(hanh_dong, "in") == 0) tong_vao++;
         else if (strcmp(hanh_dong, "out") == 0) tong_ra++;
     }
@@ -238,6 +238,25 @@ void thong_ke_xe_ra_vao() {
     fclose(tep);
     printf("Tong so xe vao: %d\n", tong_vao);
     printf("Tong so xe ra : %d\n", tong_ra);
+}
+
+void hien_thi_thong_ke_theo_tang() {
+    int xe_tang_1 = 0, xe_tang_2 = 0, xe_tang_3 = 0, xe_tang_4 = 0;
+
+    for (int i = 0; i < so_luong_xe; i++) {
+        switch (danh_sach_phuong_tien[i].tang) {
+            case 1: xe_tang_1++; break;
+            case 2: xe_tang_2++; break;
+            case 3: xe_tang_3++; break;
+            case 4: xe_tang_4++; break;
+        }
+    }
+
+    printf("\n--- Thong ke bai do xe theo tang ---\n");
+    printf("Tang 1: %d xe | Con lai: %d cho\n", xe_tang_1, so_luong_cho - xe_tang_1);
+    printf("Tang 2: %d xe | Con lai: %d cho\n", xe_tang_2, so_luong_cho - xe_tang_2);
+    printf("Tang 3: %d xe | Con lai: %d cho\n", xe_tang_3, so_luong_cho - xe_tang_3);
+    printf("Tang 4: %d xe | Con lai: %d cho\n", xe_tang_4, so_luong_cho - xe_tang_4);
 }
 
 int main() {
@@ -254,6 +273,7 @@ int main() {
         printf("4. Tong doanh thu\n");
         printf("5. Thong ke xe ra/vao\n");
         printf("6. Thoat\n");
+        printf("7. Thong ke theo tang\n");
         printf("Chon chuc nang: ");
         scanf("%d", &lua_chon);
         getchar();
@@ -278,6 +298,9 @@ int main() {
                 break;
             case 6:
                 return 0;
+            case 7:
+                hien_thi_thong_ke_theo_tang();
+                break;
             default:
                 printf("Lua chon khong hop le!\n");
         }
