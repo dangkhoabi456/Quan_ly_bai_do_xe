@@ -18,7 +18,7 @@ typedef struct {
     GtkListStore *store_tang1;
     GtkListStore *store_tang2;
     GtkWindow *parent_window;
-} SharedData ;
+} SharedData;
 
 #define MAX_SLOTS 100
 vehicle vehicle_list[MAX_SLOTS];
