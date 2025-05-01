@@ -18,7 +18,7 @@ typedef struct {
     GtkListStore *store_tang1;
     GtkListStore *store_tang2;
     GtkWindow *parent_window;
-} SharedData ;
+} SharedData;
 
 #define MAX_SLOTS 100
 vehicle vehicle_list[MAX_SLOTS];
@@ -354,16 +354,25 @@ void load_history_data(GtkListStore *store) {
 
 // Hàm kiểm tra cú pháp biển số
 int Check__license_plate(const char *a) {
-    int count = 0;
-    if (strlen(a) == 10) {
-        if (isdigit(a[0]) && isdigit(a[1])) count++;
-        if (isalpha(a[2])) count++;
-        if (a[3] == '-') count++;
-        if (isdigit(a[4]) && isdigit(a[5]) && isdigit(a[6])) count++;
-        if (a[7] == '.') count++;
-        if (isdigit(a[8]) && isdigit(a[9])) count++;
-    }
-    return count == 6; // Trả về 1 nếu hợp lệ, 0 nếu không hợp lệ
+	if (strlen(a) == 10){
+	    if (!isdigit(a[0]) || !isdigit(a[1])) return 0;
+	    if (!isupper(a[2])) return 0;
+	    if (a[3] != '-') return 0;
+	    if (!isdigit(a[4]) || !isdigit(a[5]) || !isdigit(a[6])) return 0;
+	    if (a[7] != '.') return 0;
+	    if (!isdigit(a[8]) || !isdigit(a[9])) return 0;
+	    return 1;
+	}else if (strlen(a) == 12){
+		if (!isdigit(a[0]) || !isdigit(a[1])) return 0;
+		if (a[2] != '-') return 0;
+	    if (!isupper(a[3])) return 0;
+	    if (!isdigit(a[4])) return 0;
+	    if (a[5] != ' ') return 0;
+	    if (!isdigit(a[6]) || !isdigit(a[7]) || !isdigit(a[8])) return 0;
+	    if (a[9] != '.') return 0;
+	    if (!isdigit(a[10]) || !isdigit(a[11])) return 0;
+	    return 1;
+	}else return 0 ;
 }
 //load dữ liệu từ file parking_data.txt
 void load_treeviews(SharedData *shared_data) {
