@@ -145,7 +145,124 @@ int kiem_tra_bien_so_xe(const char *bien_so_xe) {
         } else if (!isdigit(bien_so_xe[8]) || !isdigit(bien_so_xe[9])) {
             // 2 ký tự cuối không phải chữ số
         } else {
+<<<<<<< Updated upstream
             // Biển số hợp lệ
+=======
+            fscanf(log, "%[^\n]", time_str);
+            gtk_list_store_append(store, &iter);
+            gtk_list_store_set(store, &iter,
+                0, stt++,
+                1, license,
+                2, vehicle_type,
+                3, "Vào",
+                4, time_str,
+                5, "-", // Không có phí lúc vào
+                -1
+            );
+        }
+    }
+
+    fclose(log);
+}
+
+void refresh_history_tab(SharedData *shared_data) {
+    if (shared_data->history_store) {
+        gtk_list_store_clear(shared_data->history_store);
+        load_history_data(shared_data->history_store);
+    }
+}
+
+// Hàm kiểm tra cú pháp biển số
+int Check__license_plate(const char *a) {
+   	if (strlen(a) == 10){// hàm check biển số xe ô tô theo định dạng XXA-XXX.XX
+	    if (!isdigit(a[0]) || !isdigit(a[1])) return 0;
+	    if (!isupper(a[2])) return 0;
+	    if (a[3] != '-') return 0;
+	    if (!isdigit(a[4]) || !isdigit(a[5]) || !isdigit(a[6])) return 0;
+	    if (a[7] != '.') return 0;
+	    if (!isdigit(a[8]) || !isdigit(a[9])) return 0;
+	    return 1;
+	}else if (strlen(a) == 12){ //check biển số xe máy theo định dạng XX-AX_XXX.XX
+		if (!isdigit(a[0]) || !isdigit(a[1])) return 0;
+		if (a[2] != '-') return 0;
+	    if (!isupper(a[3])) return 0;
+	    if (!isdigit(a[4])) return 0;
+	    if (a[5] != '_') return 0;
+	    if (!isdigit(a[6]) || !isdigit(a[7]) || !isdigit(a[8])) return 0;
+	    if (a[9] != '.') return 0;
+	    if (!isdigit(a[10]) || !isdigit(a[11])) return 0;
+	    return 1;
+	}else return 0 ;
+}
+//load dữ liệu từ file parking_data.txt
+void load_treeviews(SharedData *shared_data) {
+    for (int i = 0; i < MAX_TANG; i++) {
+        gtk_list_store_clear(shared_data->store_tangs[i]);
+    }
+
+    GtkTreeIter iter;
+    for (int i = 0; i < num_vehicles; i++) {
+        int f = vehicle_list[i].floor;
+        if (f >= 1 && f <= MAX_TANG) {
+            gtk_list_store_append(shared_data->store_tangs[f - 1], &iter);
+            gtk_list_store_set(shared_data->store_tangs[f - 1], &iter, 0, vehicle_list[i].license_plate, -1);
+        }
+    }
+}
+
+// Hàm nhập biển số và thêm xe
+static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
+    SharedData *info = (SharedData *)data;
+    GtkWindow *parent_window = info->parent_window;
+    GtkWidget *dialog, *content_area, *entry_plate, *entry_floor, *combo_type;
+
+    dialog = gtk_dialog_new_with_buttons("Nhập thông tin xe", parent_window,
+                                         GTK_DIALOG_MODAL,
+                                         "_OK", GTK_RESPONSE_OK,
+                                         "_Hủy", GTK_RESPONSE_CANCEL, NULL);
+
+    content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 5);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 5);
+
+    GtkWidget *label_plate = gtk_label_new("Biển số:");
+    entry_plate = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry_plate), "VD: 59A-123.45");
+
+    GtkWidget *label_floor = gtk_label_new("Tầng (1 đến 4):");
+    entry_floor = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry_floor), "1");
+
+    GtkWidget *label_type = gtk_label_new("Loại xe:");
+    combo_type = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_type), "Xe máy");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_type), "Ô tô");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(combo_type), 0); // Mặc định là Xe máy
+
+    gtk_grid_attach(GTK_GRID(grid), label_plate, 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), entry_plate, 1, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), label_floor, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), entry_floor, 1, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), label_type, 0, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), combo_type, 1, 2, 1, 1);
+
+    gtk_container_add(GTK_CONTAINER(content_area), grid);
+    gtk_widget_show_all(dialog);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+        const gchar *plate_input = gtk_entry_get_text(GTK_ENTRY(entry_plate));
+        const gchar *floor_input = gtk_entry_get_text(GTK_ENTRY(entry_floor));
+        int selected = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_type));
+
+        if (!Check__license_plate(plate_input)) {
+            GtkWidget *err = gtk_message_dialog_new(parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                                                    GTK_BUTTONS_CLOSE, "Biển số không hợp lệ!\nĐịnh dạng: XXA-XXX.XX(oto)\nĐịnh dạng: XX-AX-XXX.XX(xe máy)");
+            gtk_dialog_run(GTK_DIALOG(err));
+            gtk_widget_destroy(err);
+            gtk_widget_destroy(dialog);
+>>>>>>> Stashed changes
             return;
         }
 	}
@@ -174,11 +291,129 @@ void tai_du_lieu_treeview(du_lieu_chia_se *du_lieu) {
     gtk_list_store_clear(du_lieu->store_tang1);
     gtk_list_store_clear(du_lieu->store_tang2);
     GtkTreeIter iter;
+<<<<<<< Updated upstream
     for (int i = 0; i < so_luong_xe; i++) {
         if (danh_sach_phuong_tien[i].tang == 1) {
             gtk_list_store_append(du_lieu->store_tang1, &iter);
             gtk_list_store_set(du_lieu->store_tang1, &iter, 0,
                                danh_sach_phuong_tien[i].bien_so_xe, -1);
+=======
+
+    if (gtk_tree_model_get_iter(model, &iter, path)) {
+        char *selected_plate;
+        gtk_tree_model_get(model, &iter, 0, &selected_plate, -1);  // Cột 0 là biển số xe
+
+        GtkWidget *dialog = gtk_dialog_new_with_buttons("Thay đổi thông tin xe",
+                                                        info->parent_window,
+                                                        GTK_DIALOG_MODAL,
+                                                        "_OK", GTK_RESPONSE_OK,
+                                                        "_Hủy", GTK_RESPONSE_CANCEL, NULL);
+        GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+
+        GtkWidget *label_plate = gtk_label_new("Nhập biển số mới:");
+        GtkWidget *entry_plate = gtk_entry_new();
+        gtk_entry_set_text(GTK_ENTRY(entry_plate), selected_plate);
+
+        GtkWidget *label_floor = gtk_label_new("Nhập tầng mới (1 đến 4):");
+        GtkWidget *entry_floor = gtk_entry_new();
+
+        GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+        gtk_box_pack_start(GTK_BOX(box), label_plate, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), entry_plate, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), label_floor, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), entry_floor, FALSE, FALSE, 0);
+        gtk_container_add(GTK_CONTAINER(content_area), box);
+        gtk_widget_show_all(dialog);
+
+        if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+            const gchar *new_plate = gtk_entry_get_text(GTK_ENTRY(entry_plate));
+            const gchar *floor_text = gtk_entry_get_text(GTK_ENTRY(entry_floor));
+            int new_floor = atoi(floor_text);
+
+            if (!Check__license_plate(new_plate)) {
+                GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                                                        GTK_BUTTONS_CLOSE, "Biển số không hợp lệ!\nĐịnh dạng: XXA-XXX.XX(oto)\nĐịnh dạng: XX-AX-XXX.XX(xe máy)");
+                gtk_dialog_run(GTK_DIALOG(err));
+                gtk_widget_destroy(err);
+            } else if (new_floor < 1 || new_floor > MAX_TANG) {
+                GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                                                        GTK_BUTTONS_CLOSE, "Tầng phải từ 1 đến 4!");
+                gtk_dialog_run(GTK_DIALOG(err));
+                gtk_widget_destroy(err);
+            } else {
+                bool is_duplicate = false;
+                for (int i = 0; i < num_vehicles; i++) {
+                    if (strcmp(vehicle_list[i].license_plate, new_plate) == 0 &&
+                        strcmp(vehicle_list[i].license_plate, selected_plate) != 0) {
+                        is_duplicate = true;
+                        break;
+                    }
+                }
+
+                if (is_duplicate) {
+                    GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                                                            GTK_BUTTONS_CLOSE, "Biển số đã tồn tại!");
+                    gtk_dialog_run(GTK_DIALOG(err));
+                    gtk_widget_destroy(err);
+                } else {
+                    // Cập nhật dữ liệu
+                    for (int i = 0; i < num_vehicles; i++) {
+                        if (strcmp(vehicle_list[i].license_plate, selected_plate) == 0) {
+                            strncpy(vehicle_list[i].license_plate, new_plate, sizeof(vehicle_list[i].license_plate));
+                            vehicle_list[i].floor = new_floor;
+                            break;
+                        }
+                    }
+
+                    save_parking_data();
+                    load_treeviews(info);
+
+                    GtkWidget *info_dialog = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL,
+                                                                    GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+                                                                    "Đã thay đổi thông tin xe thành công!");
+                    gtk_dialog_run(GTK_DIALOG(info_dialog));
+                    gtk_widget_destroy(info_dialog);
+                }
+            }
+        }
+
+        gtk_widget_destroy(dialog);
+        g_free(selected_plate);
+    }
+}
+
+// Hàm xử lý sự kiện khi nhấn nút
+static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data) {
+    SharedData *info = (SharedData*)data;
+    GtkWindow *parent_window = info->parent_window;
+
+    GtkWidget *dialog, *entry;
+    dialog = gtk_dialog_new_with_buttons("Thanh toán & Xóa xe",
+                                         parent_window,
+                                         GTK_DIALOG_MODAL,
+                                         "_OK", GTK_RESPONSE_OK,
+                                         "_Hủy", GTK_RESPONSE_CANCEL, NULL);
+
+    GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *label = gtk_label_new("Nhập biển số xe:");
+    entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "VD: 59A-123.45");
+
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(content_area), box);
+    gtk_widget_show_all(dialog);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+        const gchar *plate_input = gtk_entry_get_text(GTK_ENTRY(entry));
+        vehicle *veh = find_vehicle(plate_input);
+        if (veh == NULL) {
+            GtkWidget *err = gtk_message_dialog_new(parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                                                    GTK_BUTTONS_CLOSE, "Không tìm thấy xe!");
+            gtk_dialog_run(GTK_DIALOG(err));
+            gtk_widget_destroy(err);
+>>>>>>> Stashed changes
         } else {
             gtk_list_store_append(du_lieu->store_tang2, &iter);
             gtk_list_store_set(du_lieu->store_tang2, &iter, 0,
