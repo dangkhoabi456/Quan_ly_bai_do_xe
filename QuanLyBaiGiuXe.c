@@ -737,8 +737,15 @@ void filter_treeviews(SharedData *shared_data, const char *keyword) {
 static void on_search_changed(GtkEditable *entry, gpointer user_data) {
     SharedData *shared_data = (SharedData *)user_data;
     const gchar *text = gtk_entry_get_text(GTK_ENTRY(entry));
-    filter_treeviews(shared_data, text);
+
+    if (strlen(text) >= 3) {
+        filter_treeviews(shared_data, text);
+    } else {
+        // Nếu ít hơn 3 ký tự thì hiển thị lại toàn bộ danh sách
+        load_treeviews(shared_data);
+    }
 }
+
 
 int main(int argc, char **argv) {
     GtkApplication *app;
