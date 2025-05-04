@@ -46,7 +46,7 @@ static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data);
 static void Thaydoi(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 bool BienSoDaTonTai(const char *plate);
 vehicle TaoXeMoi(const char *plate, int floor, VehicleType type);
-void HienThiLoi(GtkWindow *parent, const char *msg)
+void HienThiLoi(GtkWindow *parent, const char *msg);
 static void onNhapBienSoXe(GtkWidget *widget, gpointer data);
 int Check__license_plate(const char *a);  // Khai báo prototype
 void read_form_file(SharedData *shared_data);
