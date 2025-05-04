@@ -29,12 +29,14 @@ typedef struct {
 } SharedData;
 
 
+
 vehicle vehicle_list[MAX_SLOTS];
 void load_history_data(GtkListStore *store);
 int num_vehicles = 0;
 double doanh_thu = 0;  
 void refresh_history_tab(SharedData *shared_data);
 GtkWidget *label_stats; 
+GtkWidget *label_vehicle_count; //đếm xe trong bãi	
 void Cal_total(double fee);  
 void load_treeviews(SharedData *shared_data);
 int has_available_slot();
@@ -56,6 +58,15 @@ static void on_search_changed(GtkEditable *entry, gpointer user_data);
 void save_doanh_thu();
 void load_doanh_thu();
 void log_action(const char *license_plate, const char *action, int fee);
+
+// hàm cập nhật số lượng xe
+void update_vehicle_count_label() {
+    char count_str[50];
+    sprintf(count_str, "Xe hiện tại trong bãi: %d / %d", num_vehicles, MAX_SLOTS * 4);
+    gtk_label_set_text(GTK_LABEL(label_vehicle_count), count_str);
+}
+
+
 // Hàm lưu doanh thu
 void save_doanh_thu() {
     FILE *f = fopen("doanh_thu.txt", "w");
@@ -176,10 +187,13 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *home_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     GtkWidget *label_welcome = gtk_label_new("Chào mừng đến với hệ thống quản lý bãi giữ xe");
     GtkWidget *label_fee = gtk_label_new("Phí giữ xe: 5.000 VND (ô tô) || 2.000 VND (xe máy)");
-    GtkWidget *label_note = gtk_label_new("Phí giữ xe được tính theo giờ.Nếu bạn gửi xe chưa đủ 1 giờ thì vẫn tính tròn là 1 giờ.");
+    GtkWidget *label_note = gtk_label_new("Phí giữ xe được tính theo giờ. Nếu bạn gửi xe chưa đủ 1 giờ thì vẫn tính tròn là 1 giờ.");
+    label_vehicle_count = gtk_label_new(NULL);
+	update_vehicle_count_label();
     gtk_box_pack_start(GTK_BOX(home_box), label_welcome, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_fee, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_note, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(home_box), label_vehicle_count, FALSE, FALSE, 0);
     // Gắn box vào tab Trang chủ
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), home_box, tab_label1);
 
@@ -253,6 +267,7 @@ g_signal_connect(btn2, "clicked", G_CALLBACK(ThanhtoanvaXoa), shared_data);
 
 load_doanh_thu();
 read_from_file();
+update_vehicle_count_label();
 load_treeviews(shared_data);
 
 // Kết nối nút với callback và truyền shared_data
@@ -511,10 +526,13 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
                 vehicle_list[num_vehicles++] = new_vehicle;
 
                 save_parking_data();
+                update_vehicle_count_label();
+        
 
                 GtkTreeIter iter;
                 gtk_list_store_append(info->store_tangs[floor - 1], &iter);
                 gtk_list_store_set(info->store_tangs[floor - 1], &iter, 0, plate, -1);
+
 
                 log_action(plate, "in", 0);
                 refresh_history_tab(info);
@@ -524,7 +542,6 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
             }
         }
     }
-
     gtk_widget_destroy(dialog);
 }
 
@@ -707,9 +724,15 @@ static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data) {
 
             XoaXeTaiViTri(vitri);
             save_parking_data();
-            load_treeviews(info);
+
+	
+
+
+            load_treeviews(info); // Cập nhật TreeView
+          	update_vehicle_count_label();
             refresh_history_tab(info);
             update_statistics_display();
+
         }
     }
 
