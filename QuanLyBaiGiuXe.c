@@ -181,6 +181,23 @@ int has_available_slot() {
     return num_vehicles < MAX_SLOTS;
 }
 
+void set_default_font_size(int size) {
+    GtkCssProvider *provider = gtk_css_provider_new();
+    char css[100];
+    snprintf(css, sizeof(css), "* { font-size: %dpt; }", size); // Áp dụng cho tất cả widget
+
+    gtk_css_provider_load_from_data(provider, css, -1, NULL);
+
+    gtk_style_context_add_provider_for_screen(
+        gdk_screen_get_default(),
+        GTK_STYLE_PROVIDER(provider),
+        GTK_STYLE_PROVIDER_PRIORITY_USER
+    );
+
+    g_object_unref(provider);
+}
+
+
 // Hàm callback được gọi khi ứng dụng khởi động
 static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window;
@@ -188,6 +205,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *button_box;
     GtkWidget *label;
     GtkWidget *containerBox;
+    //Chỉnh cỡ chữ mặc định cho chương trình
+    set_default_font_size(16); 
     //thống kê theo tầng
     label_thongke = gtk_label_new((const gchar*)thong_ke_theo_tang());
     // Tạo cửa sổ chính
@@ -831,5 +850,5 @@ int main(int argc, char **argv) {
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);
-    return status;   
+    return status;
 }
