@@ -59,6 +59,7 @@ void save_doanh_thu();
 void load_doanh_thu();
 char* thong_ke_theo_tang(void);
 void log_action(const char *license_plate, const char *action, int fee);
+GtkWidget *label_thongke;
 
 // hàm cập nhật số lượng xe
 void update_vehicle_count_label() {
@@ -187,10 +188,12 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *button_box;
     GtkWidget *label;
     GtkWidget *containerBox;
+    //thống kê theo tầng
+    label_thongke = gtk_label_new((const gchar*)thong_ke_theo_tang());
     // Tạo cửa sổ chính
     window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "Quản lý bãi giữ xe");
-    gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
+    gtk_window_set_default_size(GTK_WINDOW(window), 1920, 1080);
 
     // Tạo hộp chứa theo chiều dọc
     containerBox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
@@ -217,15 +220,16 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *label_fee = gtk_label_new("Phí giữ xe: 5.000 VND (ô tô) || 2.000 VND (xe máy)");
 
     GtkWidget *label_note = gtk_label_new("Phí giữ xe được tính theo giờ.Nếu bạn gửi xe chưa đủ 1 giờ thì vẫn tính tròn là 1 giờ.");
-    GtkWidget *label_thongke = gtk_label_new((const gchar*)thong_ke_theo_tang());
-	  shared_data.home_stat_label = label_thongke;   // nếu dùng biến struct
-	  gtk_box_pack_start(GTK_BOX(home_box), label_thongke, FALSE, FALSE, 10);
+
     label_vehicle_count = gtk_label_new(NULL);
 	  update_vehicle_count_label();
     gtk_box_pack_start(GTK_BOX(home_box), label_welcome, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_fee, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_note, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_vehicle_count, FALSE, FALSE, 0);
+    GtkWidget *label_thongke = gtk_label_new((const gchar*)thong_ke_theo_tang());
+	shared_data.home_stat_label = label_thongke;    // nếu dùng biến struct
+	gtk_box_pack_start(GTK_BOX(home_box), label_thongke, FALSE, FALSE, 10);
     // Gắn box vào tab Trang chủ
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), home_box, tab_label1);
 
@@ -281,30 +285,34 @@ for (int i = 0; i < MAX_TANG; i++) {
 gtk_box_pack_start(GTK_BOX(bai_xe_vbox), nested_notebook, TRUE, TRUE, 0);
 gtk_notebook_append_page(GTK_NOTEBOOK(notebook), bai_xe_vbox, tab_label3);
 
-
-SharedData *shared_data = g_new(SharedData, 1);
 for (int i = 0; i < MAX_TANG; i++) {
-    shared_data->store_tangs[i] = store_tangs[i];
+   shared_data.store_tangs[i] = store_tangs[i];
+
 }
-shared_data->parent_window = GTK_WINDOW(window);
+shared_data.parent_window = GTK_WINDOW(window);
+
 
 // Nếu cần truyền cửa sổ chính
-shared_data->parent_window = GTK_WINDOW(window);  // Chỉ nếu bạn dùng trong hàm xử lý
-g_signal_connect(search_entry, "changed", G_CALLBACK(on_search_changed), shared_data);
+shared_data.parent_window = GTK_WINDOW(window);
+  // Chỉ nếu bạn dùng trong hàm xử lý
+g_signal_connect(search_entry, "changed", G_CALLBACK(on_search_changed), &shared_data);
+
 for (int i = 0; i < MAX_TANG; i++) {
-    g_signal_connect(treeviews[i], "row-activated", G_CALLBACK(Thaydoi), shared_data);
+   g_signal_connect(treeviews[i], "row-activated", G_CALLBACK(Thaydoi), &shared_data);
 }
 
-g_signal_connect(btn2, "clicked", G_CALLBACK(ThanhtoanvaXoa), shared_data);
+
 
 load_doanh_thu();
 read_from_file();
 update_vehicle_count_label();
-load_treeviews(shared_data);
+gtk_label_set_text(GTK_LABEL(label_thongke), thong_ke_theo_tang());
+load_treeviews(&shared_data);
+
 
 // Kết nối nút với callback và truyền shared_data
-g_signal_connect(btn1, "clicked", G_CALLBACK(onNhapBienSoXe), shared_data);
-    
+g_signal_connect(btn1, "clicked", G_CALLBACK(onNhapBienSoXe), &shared_data);
+g_signal_connect(btn2, "clicked", G_CALLBACK(ThanhtoanvaXoa), &shared_data);    
 // Thêm notebook vào container chính
 gtk_box_pack_start(GTK_BOX(containerBox), notebook, TRUE, TRUE, 5);
 
@@ -325,7 +333,8 @@ GtkListStore *store = gtk_list_store_new(6,
     G_TYPE_STRING,  // Thời gian
     G_TYPE_STRING   // Chi phí giữ xe
 );
-shared_data->history_store = store;  // Lưu store vào shared_data
+shared_data.history_store = store;
+  // Lưu store vào shared_data
 gtk_tree_view_set_model(GTK_TREE_VIEW(history_view), GTK_TREE_MODEL(store));
 g_object_unref(store);
 load_history_data(store);
@@ -413,7 +422,6 @@ void show_floor_statistics(SharedData *shared_data) {
         gtk_label_set_text(GTK_LABEL(shared_data->home_stat_label), stats);
     }
 }
-
 // Hàm kiểm tra cú pháp biển số
 int Check__license_plate(const char *a) {
    	if (strlen(a) == 10){// hàm check biển số xe ô tô theo định dạng XXA-XXX.XX
@@ -540,6 +548,7 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
 
                 save_parking_data();
                 update_vehicle_count_label();
+                gtk_label_set_text(GTK_LABEL(label_thongke), thong_ke_theo_tang());
         
 
                 GtkTreeIter iter;
@@ -555,8 +564,9 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
             }
         }
     }
+	show_floor_statistics(info);  // info chính là shared_data được truyền vào  // truyền địa chỉ &shared_data (con trỏ)
     gtk_widget_destroy(dialog);
-    show_floor_statistics(&shared_data);  // truyền địa chỉ &shared_data (con trỏ)
+    
 }
 
 vehicle* find_vehicle(const char *license_plate) {
@@ -739,15 +749,17 @@ static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data) {
             save_parking_data();
             load_treeviews(info); // Cập nhật TreeView
           	update_vehicle_count_label();
+          	gtk_label_set_text(GTK_LABEL(label_thongke), thong_ke_theo_tang());
             refresh_history_tab(info);
             update_statistics_display();
+			show_floor_statistics(info);
             save_parking_data();
             load_treeviews(info); // Cập nhật TreeView
         }
     }
-
+	
     gtk_widget_destroy(dialog);
-    show_floor_statistics(info);
+    
 }
 
 void update_statistics_display() {
@@ -819,5 +831,5 @@ int main(int argc, char **argv) {
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);
-    return status;
+    return status;   
 }
