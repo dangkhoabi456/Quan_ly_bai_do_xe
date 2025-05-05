@@ -350,34 +350,6 @@ gtk_widget_show_all(window);
 
 }
 
-void save_parking_data() {
-    FILE *f = fopen("parking_data.txt", "w");
-    if (!f) {
-        printf("Lỗi mở file để ghi!\n");
-        return;
-    }
-
-    char time_str[30];
-    for (int i = 0; i < num_vehicles; i++) {
-        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", 
-                localtime(&vehicle_list[i].entry_time));
-        
-        const char *type_str = (vehicle_list[i].type == o_to) ? "O_TO" : "XE_MAY";
-        
-        fprintf(f, "%s %d %s %d %s\n",
-               vehicle_list[i].license_plate,
-               vehicle_list[i].fee,
-               time_str,
-               vehicle_list[i].floor,
-               type_str);
-    }
-    fclose(f);
-}
-
-// Kiểm tra còn chỗ không
-int has_available_slot() {
-    return num_vehicles < MAX_SLOTS;
-}
 
 void load_history_data(GtkListStore *store) {
     FILE *log = fopen("log.txt", "r");
@@ -508,6 +480,8 @@ void HienThiLoi(GtkWindow *parent, const char *msg) {
 }
 
 static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
+	GtkWidget *label_floor = gtk_label_new("Tầng:");
+	
     SharedData *info = (SharedData *)data;
 
     GtkWindow *parent = info->parent_window;
