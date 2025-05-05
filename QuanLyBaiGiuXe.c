@@ -9,7 +9,7 @@
 #define MAX_TANG 4
 #define XE_MAY 2000
 #define O_TO 5000
-
+#include <glib.h> // Để sử dụng g_strdup và g_free
 typedef enum {
     xe_may,
     o_to
@@ -40,6 +40,7 @@ GtkWidget *label_vehicle_count; //đếm xe trong bãi
 void Cal_total(double fee);  
 void load_treeviews(SharedData *shared_data);
 int has_available_slot();
+char* format_currency(double amount);
 int TimViTriXe(const char *plate);
 int TinhPhiGuiXe(vehicle *veh);
 void XoaXeTaiViTri(int index);
@@ -192,8 +193,10 @@ void load_history_data(GtkListStore *store) {
         if (strcmp(status, "out") == 0) {
             fscanf(log, "%d %[^\n]", &fee, time_str);
 
-            char fee_str[20];
-            snprintf(fee_str, sizeof(fee_str), "%d VND", fee);
+            // Định dạng số tiền có dấu chấm phân cách
+            char *formatted_fee = format_currency((double)fee);
+            char fee_str[50];
+            snprintf(fee_str, sizeof(fee_str), "%s VND", formatted_fee);
 
             gtk_list_store_append(store, &iter);
             gtk_list_store_set(store, &iter,
@@ -202,9 +205,10 @@ void load_history_data(GtkListStore *store) {
                 2, vehicle_type,
                 3, "Ra",
                 4, time_str,
-                5, fee_str,
+                5, fee_str,  // Sử dụng chuỗi đã định dạng
                 -1
             );
+            g_free(formatted_fee);  // Giải phóng bộ nhớ
         } else {
             fscanf(log, "%[^\n]", time_str);
             gtk_list_store_append(store, &iter);
@@ -219,10 +223,8 @@ void load_history_data(GtkListStore *store) {
             );
         }
     }
-
     fclose(log);
 }
-
 void refresh_history_tab(SharedData *shared_data) {
     if (shared_data->history_store) {
         gtk_list_store_clear(shared_data->history_store);
@@ -243,6 +245,8 @@ void update_vehicle_count_label() {
     sprintf(count_str, "Xe hiện tại trong bãi: %d / %d", num_vehicles, MAX_SLOTS * 4);
     gtk_label_set_text(GTK_LABEL(label_vehicle_count), count_str);
 }
+
+
 
 // Hàm kiểm tra cú pháp biển số
 int Check__license_plate(const char *a) {
@@ -344,15 +348,17 @@ void XoaXeTaiViTri(int index) {
 
 void HienThiKetQuaThanhToan(GtkWindow *parent, const vehicle *veh, int fee) {
     double elapsed_seconds = (double)(clock() - veh->clock_start) / CLOCKS_PER_SEC;
+    char *formatted_fee = g_strdup_printf("%'.0f", (double)fee); // Định dạng số tiền
     char msg[150];
     snprintf(msg, sizeof(msg),
-             "Xe: %s\nThời gian gửi: %.1f giờ\nPhí: %d VND",
-             veh->license_plate, elapsed_seconds / 3600, fee);
+             "Xe: %s\nThời gian gửi: %.1f giờ\nPhí: %s VND",
+             veh->license_plate, elapsed_seconds / 3600, formatted_fee);
 
     GtkWidget *info_dialog = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL,
                                                     GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", msg);
     gtk_dialog_run(GTK_DIALOG(info_dialog));
     gtk_widget_destroy(info_dialog);
+    g_free(formatted_fee); // Giải phóng bộ nhớ
 }
 
 void Cal_total(double fee){
@@ -377,6 +383,25 @@ char* thong_ke_theo_tang(void) {
     return buffer;
 }
 
+// Hàm thêm dấu chấm phân cách hàng ngàn
+char* format_currency(double amount) {
+    static char buffer[50];
+    snprintf(buffer, sizeof(buffer), "%.0f", amount);
+
+    int len = strlen(buffer);
+    int pos = 0;
+    char formatted[50] = {0};
+
+    for (int i = 0; i < len; i++) {
+        if ((len - i) % 3 == 0 && i != 0) {
+            formatted[pos++] = '.';
+        }
+        formatted[pos++] = buffer[i];
+    }
+    formatted[pos] = '\0';
+    return g_strdup(formatted);  // Trả về chuỗi đã được cấp phát động
+}
+
 void update_statistics_display() {
     int in_count = 0, out_count = 0;
     // Luôn đọc lại doanh thu từ file
@@ -385,7 +410,7 @@ void update_statistics_display() {
     FILE *log = fopen("log.txt", "r");
     if (log) {
         char line[256];
-        while (fgets(line, sizeof(line), log)) {
+        while (fgets(line, sizeof(line), log) != NULL) {  // Đã sửa dòng này
             if (strstr(line, " in ") != NULL) in_count++;
             else if (strstr(line, " out ") != NULL) out_count++;
         }
@@ -393,13 +418,14 @@ void update_statistics_display() {
     }
 
     char stats[256];
+    char *formatted_doanh_thu = format_currency(doanh_thu);
     snprintf(stats, sizeof(stats),
-             "Xe vào: %d\nXe ra: %d\nDoanh thu: %.0f VND",
-             in_count, out_count, doanh_thu);
-
+             "Xe vào: %d\nXe ra: %d\nDoanh thu: %s VND",
+             in_count, out_count, formatted_doanh_thu);
+    
     gtk_label_set_text(GTK_LABEL(label_stats), stats);
+    g_free(formatted_doanh_thu); // Giải phóng bộ nhớ
 }
-
 void filter_treeviews(SharedData *shared_data, const char *keyword) {
     for (int i = 0; i < MAX_TANG; i++) {
         gtk_list_store_clear(shared_data->store_tangs[i]);
