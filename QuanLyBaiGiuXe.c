@@ -60,7 +60,7 @@ void load_doanh_thu();
 char* thong_ke_theo_tang(void);
 void log_action(const char *license_plate, const char *action, int fee);
 GtkWidget *label_thongke;
-
+void set_default_font_size(int size);
 // hàm cập nhật số lượng xe
 void update_vehicle_count_label() {
     char count_str[50];
