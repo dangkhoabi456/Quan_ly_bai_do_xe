@@ -603,36 +603,36 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
         int selected = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_type));
 
         if (!Check__license_plate(plate)) {
-            HienThiLoi(parent, "Biển số không hợp lệ!\n"
-                               "Định dạng: XXA-XXX.XX (ô tô)\n"
-                               "Định dạng: XX-AX_XXX.XX (xe máy)");
-        } else {
-            int floor = atoi(floor_str);
-            if (floor < 1 || floor > MAX_TANG) {
-                HienThiLoi(parent, "Chỉ chấp nhận tầng từ 1 đến 4.");
-            } else if (BienSoDaTonTai(plate)) {
-                HienThiLoi(parent, "Biển số này đã tồn tại!");
-            } else {
-                vehicle new_vehicle = TaoXeMoi(plate, floor, (selected == 0) ? xe_may : o_to);
-                vehicle_list[num_vehicles++] = new_vehicle;
-
-                save_parking_data();
-                update_vehicle_count_label();
-                gtk_label_set_text(GTK_LABEL(label_thongke), thong_ke_theo_tang());
-        
-
-                GtkTreeIter iter;
-                gtk_list_store_append(info->store_tangs[floor - 1], &iter);
-                gtk_list_store_set(info->store_tangs[floor - 1], &iter, 0, plate, -1);
-
-
-                log_action(plate, "in", 0);
-                refresh_history_tab(info);
-                update_statistics_display();
-
-                g_print("Xe %s đã thêm vào tầng %d\n", plate, floor);
-            }
-        }
+		    HienThiLoi(parent, "Biển số không hợp lệ!\n"
+		                       "Định dạng ô tô: XXA-XXX.XX\n"
+		                       "Định dạng xe máy: XX-AX_XXX.XX");
+		} else if ((selected == 0 && strlen(plate) != 12) || (selected == 1 && strlen(plate) != 10)) {
+		    HienThiLoi(parent, "Loại xe không khớp với định dạng biển số!\n"
+		                       "Vui lòng chọn đúng loại xe.");
+		} else {
+		    int floor = atoi(floor_str);
+		    if (floor < 1 || floor > MAX_TANG) {
+		        HienThiLoi(parent, "Chỉ chấp nhận tầng từ 1 đến 4.");
+		    } else if (BienSoDaTonTai(plate)) {
+		        HienThiLoi(parent, "Biển số này đã tồn tại!");
+		    } else {
+		        vehicle new_vehicle = TaoXeMoi(plate, floor, (selected == 0) ? xe_may : o_to);
+		        vehicle_list[num_vehicles++] = new_vehicle;
+		
+		        save_parking_data();
+		        update_vehicle_count_label();
+		        gtk_label_set_text(GTK_LABEL(label_thongke), thong_ke_theo_tang());
+		
+		        GtkTreeIter iter;
+		        gtk_list_store_append(info->store_tangs[floor - 1], &iter);
+		        gtk_list_store_set(info->store_tangs[floor - 1], &iter, 0, plate, -1);
+		
+		        log_action(plate, "in", 0);
+		        refresh_history_tab(info);
+		        update_statistics_display();
+		
+		        g_print("Xe %s đã thêm vào tầng %d\n", plate, floor);
+		    }
     }
 	show_floor_statistics(info);  // info chính là shared_data được truyền vào  // truyền địa chỉ &shared_data (con trỏ)
     gtk_widget_destroy(dialog);
