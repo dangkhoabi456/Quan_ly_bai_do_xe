@@ -17,7 +17,7 @@ void cap_nhat_doanh_thu_ngay(int so_tien);
 void thong_ke_doanh_thu_theo_ngay();
 int tinh_tong_doanh_thu_thang(int thang, int nam);
 int tinh_tong_doanh_thu_nam(int nam);
-void hien_thi_doanh_thu_treeview(GtkTreeView *treeview);  
+void hien_thi_doanh_thu_treeview(GtkTreeView *treeview);   
 
 #endif
 
