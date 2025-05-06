@@ -632,7 +632,8 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
 		        update_statistics_display();
 		
 		        g_print("Xe %s đã thêm vào tầng %d\n", plate, floor);
-		    }
+		 	}
+		}
     }
 	show_floor_statistics(info);  // info chính là shared_data được truyền vào  // truyền địa chỉ &shared_data (con trỏ)
     gtk_widget_destroy(dialog);
