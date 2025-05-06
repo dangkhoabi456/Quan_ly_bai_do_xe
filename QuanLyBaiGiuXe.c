@@ -849,7 +849,11 @@ gtk_box_pack_start(GTK_BOX(tab_content2), label_stats, FALSE, FALSE, 10);
 update_statistics_display();
 
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), tab_content2, tab_label2);
-    //=== TAB 4: Doanh thu ===
+    
+    // === TAB 3: Bãi xe ===
+GtkWidget *tab_label3 = gtk_label_new("Bãi xe");
+
+	//=== TAB 4: Doanh thu ===
 GtkWidget *tab_doanh_thu = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 treeview_doanh_thu = gtk_tree_view_new();
 
@@ -857,11 +861,6 @@ gtk_box_pack_start(GTK_BOX(tab_doanh_thu), treeview_doanh_thu, TRUE, TRUE, 0);
 hien_thi_doanh_thu_treeview(GTK_TREE_VIEW(treeview_doanh_thu));
 
 gtk_notebook_append_page(GTK_NOTEBOOK(notebook), tab_doanh_thu, gtk_label_new("Doanh thu"));
-
-
-    // === TAB 3: Bãi xe ===
-GtkWidget *tab_label3 = gtk_label_new("Bãi xe");
-
 // Tạo notebook con để chứa các tầng
 GtkWidget *nested_notebook = gtk_notebook_new();
 GtkWidget *bai_xe_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
@@ -893,10 +892,6 @@ for (int i = 0; i < MAX_TANG; i++) {
 
     gtk_notebook_append_page(GTK_NOTEBOOK(nested_notebook), scroll, tab_label);
 }
-
-// Cuối cùng: Thêm notebook con vào tab chính "Bãi xe"
-gtk_box_pack_start(GTK_BOX(bai_xe_vbox), nested_notebook, TRUE, TRUE, 0);
-gtk_notebook_append_page(GTK_NOTEBOOK(notebook), bai_xe_vbox, tab_label3);
 
 // Cuối cùng: Thêm notebook con vào tab chính "Bãi xe"
 gtk_box_pack_start(GTK_BOX(bai_xe_vbox), nested_notebook, TRUE, TRUE, 0);
