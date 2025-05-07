@@ -27,11 +27,11 @@ typedef enum {
     o_to
 } VehicleType;
 typedef struct {
-    char license_plate[20];   
-    int fee;                  
-    time_t entry_time;        
-    clock_t clock_start;
-    int floor;
+    char bien_so_xe[20];   
+    int phi;                  
+    time_t thoi_gian_vao;        
+    clock_t bo_dem;
+    int so_tang;
 	VehicleType type; 
 } vehicle;
 typedef struct {
@@ -42,41 +42,45 @@ typedef struct {
 } SharedData;
 SharedData shared_data;   // biến kiểu struct	
 
-vehicle vehicle_list[MAX_SLOTS];
-void load_history_data(GtkListStore *store);
-int num_vehicles = 0;
+vehicle danh_sach_xe[MAX_SLOTS];
+void tai_du_lieu_lich_su(GtkListStore *store);
+int so_luong_xe = 0;
 double doanh_thu = 0;  
-void refresh_history_tab(SharedData *shared_data);
+void cap_nhat_tab_lich_su(SharedData *shared_data);
 GtkWidget *label_stats; 
 GtkWidget *treeview_doanh_thu;
 GtkWidget *label_vehicle_count; //đếm xe trong bãi	
-void Cal_total(double fee);  
-void load_treeviews(SharedData *shared_data);
-int has_available_slot();
-char* format_currency(double amount);
-int TimViTriXe(const char *plate);
-int TinhPhiGuiXe(vehicle *veh);
-void XoaXeTaiViTri(int index);
-void HienThiKetQuaThanhToan(GtkWindow *parent, const vehicle *veh, int fee);
-static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data);
-static void Thaydoi(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
-bool BienSoDaTonTai(const char *plate);
-vehicle TaoXeMoi(const char *plate, int floor, VehicleType type);
-void HienThiLoi(GtkWindow *parent, const char *msg);
-static void onNhapBienSoXe(GtkWidget *widget, gpointer data);
-int Check__license_plate(const char *a);  // Khai báo prototype
-void read_form_file(SharedData *shared_data);
-vehicle* find_vehicle(const char *license_plate);
-void update_statistics_display();
-static void on_search_changed(GtkEditable *entry, gpointer user_data);
-void save_doanh_thu();
-void load_doanh_thu();
+void tinh_tong_doanh_thu(double phi);  
+void tai_cay_xe(SharedData *shared_data);
+int con_slot_trong();
+char* dinh_dang_tien(double amount);
+int tim_vi_tri_xe(const char *plate);
+int tinh_phi_gui_xe(vehicle *veh);
+void xoa_xe_tai_vi_tri(int index);
+void hien_thi_ket_qua_thanh_toan(GtkWindow *parent, const vehicle *veh, int phi);
+static void thanh_toan_va_xoa(GtkWidget *widget, gpointer data);
+static void thay_doi(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
+bool bien_so_da_ton_tai(const char *plate);
+vehicle tao_xe_moi(const char *plate, int so_tang, VehicleType type);
+void hien_thi_loi(GtkWindow *parent, const char *msg);
+static void nhap_bien_so(GtkWidget *widget, gpointer data);
+int kiem_tra_bien_so(const char *a);  // Khai báo prototype
+void doc_du_lieu_tu_file(SharedData *shared_data);
+vehicle* tim_xe(const char *bien_so_xe);
+void cap_nhat_hien_thi_thong_ke();
+static void tim_kiem(GtkEditable *entry, gpointer user_data);
+void luu_doanh_thu();
+void tai_doanh_thu();
+void luu_du_lieu_file_parking();
+void bo_loc_tim_kiem(SharedData *shared_data, const char *keyword);
 char* thong_ke_theo_tang(void);
-void log_action(const char *license_plate, const char *action, int fee);
+void ghi_nhat_ky(const char *bien_so_xe, const char *action, int phi);
 GtkWidget *label_thongke;
-void set_default_font_size(int size);
+void cap_nhat_nhan_so_luong_xe();
+void hien_thi_thong_ke_tang(SharedData *shared_data);
+void dat_kich_thuoc(int size);
 // Hàm lưu doanh thu
-void save_doanh_thu() {
+void luu_doanh_thu() {
     FILE *f = fopen("doanh_thu.txt", "w");
     if (f) {
         fprintf(f, "%.0f", doanh_thu);
@@ -85,7 +89,7 @@ void save_doanh_thu() {
 }
 
 // Hàm đọc doanh thu
-void load_doanh_thu() {
+void tai_doanh_thu() {
     FILE *f = fopen("doanh_thu.txt", "r");
     if (f) {
         fscanf(f, "%lf", &doanh_thu);
@@ -105,11 +109,11 @@ void read_from_file() {
     vehicle temp;
     int year, mon, day, hour, min, sec;
     char type_str[10];
-    num_vehicles = 0;
+    so_luong_xe = 0;
 
     while (fscanf(pt, "%s %d %d-%d-%d %d:%d:%d %d %s",
-                  temp.license_plate, &temp.fee,
-                  &year, &mon, &day, &hour, &min, &sec, &temp.floor, type_str) == 10) {
+                  temp.bien_so_xe, &temp.phi,
+                  &year, &mon, &day, &hour, &min, &sec, &temp.so_tang, type_str) == 10) {
 
         struct tm tm_time = {0};
         tm_time.tm_year = year - 1900;
@@ -119,8 +123,8 @@ void read_from_file() {
         tm_time.tm_min = min;
         tm_time.tm_sec = sec;
 
-        temp.entry_time = mktime(&tm_time);
-        temp.clock_start = clock() - (clock_t)(difftime(time(NULL), temp.entry_time) * CLOCKS_PER_SEC);
+        temp.thoi_gian_vao = mktime(&tm_time);
+        temp.bo_dem = clock() - (clock_t)(difftime(time(NULL), temp.thoi_gian_vao) * CLOCKS_PER_SEC);
 
         // Phân loại xe
         if (strcmp(type_str, "O_TO") == 0) {
@@ -129,14 +133,14 @@ void read_from_file() {
             temp.type = xe_may;
         }
 
-        if (num_vehicles < MAX_SLOTS) {
-            vehicle_list[num_vehicles++] = temp;
+        if (so_luong_xe < MAX_SLOTS) {
+            danh_sach_xe[so_luong_xe++] = temp;
         }
     }
     fclose(pt);
 }
 
-void log_action(const char *license_plate, const char *action, int fee) {
+void ghi_nhat_ky(const char *bien_so_xe, const char *action, int phi) {
     FILE *log = fopen("log.txt", "a");
     if (!log) return;
 
@@ -144,21 +148,21 @@ void log_action(const char *license_plate, const char *action, int fee) {
     char time_str[30];
     strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
-    vehicle *veh = find_vehicle(license_plate);
+    vehicle *veh = tim_xe(bien_so_xe);
     const char *vehicle_type = "Không rõ";
     if (veh != NULL) {
         vehicle_type = (veh->type == xe_may) ? "Xe_máy" : "Ô_tô";
     }
 
     if (strcmp(action, "out") == 0) {
-        fprintf(log, "%s %s %s %d %s\n", license_plate, vehicle_type, action, fee, time_str);
+        fprintf(log, "%s %s %s %d %s\n", bien_so_xe, vehicle_type, action, phi, time_str);
     } else {
-        fprintf(log, "%s %s %s %s\n", license_plate, vehicle_type, action, time_str);
+        fprintf(log, "%s %s %s %s\n", bien_so_xe, vehicle_type, action, time_str);
     }
     fclose(log);
 }
 
-void save_parking_data() {
+void luu_du_lieu_file_parking() {
     FILE *f = fopen("parking_data.txt", "w");
     if (!f) {
         printf("Lỗi mở file để ghi!\n");
@@ -166,17 +170,17 @@ void save_parking_data() {
     }
 
     char time_str[30];
-    for (int i = 0; i < num_vehicles; i++) {
+    for (int i = 0; i < so_luong_xe; i++) {
         strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", 
-                localtime(&vehicle_list[i].entry_time));
+                localtime(&danh_sach_xe[i].thoi_gian_vao));
         
-        const char *type_str = (vehicle_list[i].type == o_to) ? "O_TO" : "XE_MAY";
+        const char *type_str = (danh_sach_xe[i].type == o_to) ? "O_TO" : "XE_MAY";
         
         fprintf(f, "%s %d %s %d %s\n",
-               vehicle_list[i].license_plate,
-               vehicle_list[i].fee,
+               danh_sach_xe[i].bien_so_xe,
+               danh_sach_xe[i].phi,
                time_str,
-               vehicle_list[i].floor,
+               danh_sach_xe[i].so_tang,
                type_str);
     }
     fclose(f);
@@ -268,18 +272,18 @@ void hien_thi_doanh_thu_treeview(GtkTreeView *treeview) {
 }
 
 // Kiểm tra còn chỗ không
-int has_available_slot() {
-    return num_vehicles < MAX_SLOTS;
+int con_slot_trong() {
+    return so_luong_xe < MAX_SLOTS;
 }
 
 // Hàm callback được gọi khi ứng dụng khởi động
-void load_history_data(GtkListStore *store) {
+void tai_du_lieu_lich_su(GtkListStore *store) {
     FILE *log = fopen("log.txt", "r");
     if (!log) return;
 
     int stt = 1;
     char license[20], vehicle_type[20], status[10];
-    int fee;
+    int phi;
     char time_str[50];
 
     while (!feof(log)) {
@@ -289,12 +293,12 @@ void load_history_data(GtkListStore *store) {
         GtkTreeIter iter;
 
         if (strcmp(status, "out") == 0) {
-            fscanf(log, "%d %[^\n]", &fee, time_str);
+            fscanf(log, "%d %[^\n]", &phi, time_str);
 
             // Định dạng số tiền có dấu chấm phân cách
-            char *formatted_fee = format_currency((double)fee);
-            char fee_str[50];
-            snprintf(fee_str, sizeof(fee_str), "%s VND", formatted_fee);
+            char *formatted_phi = dinh_dang_tien((double)phi);
+            char phi_str[50];
+            snprintf(phi_str, sizeof(phi_str), "%s VND", formatted_phi);
 
             gtk_list_store_append(store, &iter);
             gtk_list_store_set(store, &iter,
@@ -303,10 +307,10 @@ void load_history_data(GtkListStore *store) {
                 2, vehicle_type,
                 3, "Ra",
                 4, time_str,
-                5, fee_str,  // Sử dụng chuỗi đã định dạng
+                5, phi_str,  // Sử dụng chuỗi đã định dạng
                 -1
             );
-            g_free(formatted_fee);  // Giải phóng bộ nhớ
+            g_free(formatted_phi);  // Giải phóng bộ nhớ
         } else {
             fscanf(log, "%[^\n]", time_str);
             gtk_list_store_append(store, &iter);
@@ -323,14 +327,14 @@ void load_history_data(GtkListStore *store) {
     }
     fclose(log);
 }
-void refresh_history_tab(SharedData *shared_data) {
+void cap_nhat_tab_lich_su(SharedData *shared_data) {
     if (shared_data->history_store) {
         gtk_list_store_clear(shared_data->history_store);
-        load_history_data(shared_data->history_store);
+        tai_du_lieu_lich_su(shared_data->history_store);
     }
 }
 
-void show_floor_statistics(SharedData *shared_data) {
+void hien_thi_thong_ke_tang(SharedData *shared_data) {
     char *stats = thong_ke_theo_tang();
     if (shared_data->home_stat_label) {
         gtk_label_set_text(GTK_LABEL(shared_data->home_stat_label), stats);
@@ -338,16 +342,16 @@ void show_floor_statistics(SharedData *shared_data) {
 }
 
 // hàm cập nhật số lượng xe
-void update_vehicle_count_label() {
+void cap_nhat_nhan_so_luong_xe() {
     char count_str[50];
-    sprintf(count_str, "Xe hiện tại trong bãi: %d / %d", num_vehicles, MAX_SLOTS * 4);
+    sprintf(count_str, "Xe hiện tại trong bãi: %d / %d", so_luong_xe, MAX_SLOTS * 4);
     gtk_label_set_text(GTK_LABEL(label_vehicle_count), count_str);
 }
 
 
 
 // Hàm kiểm tra cú pháp biển số
-int Check__license_plate(const char *a) {
+int kiem_tra_bien_so(const char *a) {
    	if (strlen(a) == 10){// hàm check biển số xe ô tô theo định dạng XXA-XXX.XX
 	    if (!isdigit(a[0]) || !isdigit(a[1])) return 0;
 	    if (!isupper(a[2])) return 0;
@@ -369,108 +373,108 @@ int Check__license_plate(const char *a) {
 	}else return 0 ;
 }
 //load dữ liệu từ file parking_data.txt
-void load_treeviews(SharedData *shared_data) {
+void tai_cay_xe(SharedData *shared_data) {
     for (int i = 0; i < MAX_TANG; i++) {
         gtk_list_store_clear(shared_data->store_tangs[i]);
     }
 
     GtkTreeIter iter;
-    for (int i = 0; i < num_vehicles; i++) {
-        int f = vehicle_list[i].floor;
+    for (int i = 0; i < so_luong_xe; i++) {
+        int f = danh_sach_xe[i].so_tang;
         if (f >= 1 && f <= MAX_TANG) {
             gtk_list_store_append(shared_data->store_tangs[f - 1], &iter);
-            gtk_list_store_set(shared_data->store_tangs[f - 1], &iter, 0, vehicle_list[i].license_plate, -1);
+            gtk_list_store_set(shared_data->store_tangs[f - 1], &iter, 0, danh_sach_xe[i].bien_so_xe, -1);
         }
     }
 }
 
-bool BienSoDaTonTai(const char *plate) {
-    for (int i = 0; i < num_vehicles; i++) {
-        if (strcmp(vehicle_list[i].license_plate, plate) == 0) {
+bool bien_so_da_ton_tai(const char *plate) {
+    for (int i = 0; i < so_luong_xe; i++) {
+        if (strcmp(danh_sach_xe[i].bien_so_xe, plate) == 0) {
             return true;
         }
     }
     return false;
 }
 
-vehicle TaoXeMoi(const char *plate, int floor, VehicleType type) {
+vehicle tao_xe_moi(const char *plate, int so_tang, VehicleType type) {
     vehicle v;
-    strncpy(v.license_plate, plate, sizeof(v.license_plate));
-    v.floor = floor;
+    strncpy(v.bien_so_xe, plate, sizeof(v.bien_so_xe));
+    v.so_tang = so_tang;
     v.type = type;
-    v.entry_time = time(NULL);
-    v.clock_start = clock();
-    v.fee = 0;
+    v.thoi_gian_vao = time(NULL);
+    v.bo_dem = clock();
+    v.phi = 0;
     return v;
 }
 
-void HienThiLoi(GtkWindow *parent, const char *msg) {
+void hien_thi_loi(GtkWindow *parent, const char *msg) {
     GtkWidget *err = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
                                             GTK_BUTTONS_CLOSE, "%s", msg);
     gtk_dialog_run(GTK_DIALOG(err));
     gtk_widget_destroy(err);
 }
 
-vehicle* find_vehicle(const char *license_plate) {
-    for (int i = 0; i < num_vehicles; i++) {
-        if (strcmp(vehicle_list[i].license_plate, license_plate) == 0) {
-            return &vehicle_list[i];
+vehicle* tim_xe(const char *bien_so_xe) {
+    for (int i = 0; i < so_luong_xe; i++) {
+        if (strcmp(danh_sach_xe[i].bien_so_xe, bien_so_xe) == 0) {
+            return &danh_sach_xe[i];
         }
     }
     return NULL;
 }
 
-int TimViTriXe(const char *plate) {
-    for (int i = 0; i < num_vehicles; i++) {
-        if (strcmp(vehicle_list[i].license_plate, plate) == 0) {
+int tim_vi_tri_xe(const char *plate) {
+    for (int i = 0; i < so_luong_xe; i++) {
+        if (strcmp(danh_sach_xe[i].bien_so_xe, plate) == 0) {
             return i;
         }
     }
     return -1;
 }
 
-int TinhPhiGuiXe(vehicle *veh) {
+int tinh_phi_gui_xe(vehicle *veh) {
     clock_t clock_end = clock();
-    double elapsed_seconds = (double)(clock_end - veh->clock_start) / CLOCKS_PER_SEC;
+    double elapsed_seconds = (double)(clock_end - veh->bo_dem) / CLOCKS_PER_SEC;
     int total_hours = (elapsed_seconds + 3599) / 3600;
     int rate = (veh->type == xe_may) ? XE_MAY : O_TO;
     return total_hours * rate;
 }
 
-void XoaXeTaiViTri(int index) {
-    for (int j = index; j < num_vehicles - 1; j++) {
-        vehicle_list[j] = vehicle_list[j + 1];
+void xoa_xe_tai_vi_tri(int index) {
+    for (int j = index; j < so_luong_xe - 1; j++) {
+        danh_sach_xe[j] = danh_sach_xe[j + 1];
     }
-    num_vehicles--;
+    so_luong_xe--;
 }
 
-void HienThiKetQuaThanhToan(GtkWindow *parent, const vehicle *veh, int fee) {
-    double elapsed_seconds = (double)(clock() - veh->clock_start) / CLOCKS_PER_SEC;
-    char *formatted_fee = g_strdup_printf("%'.0f", (double)fee); // Định dạng số tiền
+void hien_thi_ket_qua_thanh_toan(GtkWindow *parent, const vehicle *veh, int phi) {
+    double elapsed_seconds = (double)(clock() - veh->bo_dem) / CLOCKS_PER_SEC;
+    char *formatted_phi = g_strdup_printf("%'.0f", (double)phi); // Định dạng số tiền
     char msg[150];
     snprintf(msg, sizeof(msg),
              "Xe: %s\nThời gian gửi: %.1f giờ\nPhí: %s VND",
-             veh->license_plate, elapsed_seconds / 3600, formatted_fee);
+             veh->bien_so_xe, elapsed_seconds / 3600, formatted_phi);
 
     GtkWidget *info_dialog = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL,
                                                     GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", msg);
     gtk_dialog_run(GTK_DIALOG(info_dialog));
     gtk_widget_destroy(info_dialog);
-    g_free(formatted_fee); // Giải phóng bộ nhớ
+    g_free(formatted_phi); // Giải phóng bộ nhớ
 }
 
-void Cal_total(double fee){
-	doanh_thu += fee;
-	save_doanh_thu();
-}//gọi hàm Cal_total(fee) ở trong hàm void remove_vehicle(const char *license_plate)
+void tinh_tong_doanh_thu(double phi){
+	doanh_thu += phi;
+	luu_doanh_thu();
+}//gọi hàm tinh_tong_doanh_thu(phi) ở trong hàm void remove_vehicle(const char *bien_so_xe)
 
 char* thong_ke_theo_tang(void) {
     static char buffer[100];
     int counts[MAX_TANG] = {0};
     
-    for (int i = 0; i < num_vehicles; i++) {
-        if (vehicle_list[i].floor >= 1 && vehicle_list[i].floor <= MAX_TANG) {
-            counts[vehicle_list[i].floor - 1]++;
+    for (int i = 0; i < so_luong_xe; i++) {
+        if (danh_sach_xe[i].so_tang >= 1 && danh_sach_xe[i].so_tang <= MAX_TANG) {
+            counts[danh_sach_xe[i].so_tang - 1]++;
         }
     }
     
@@ -482,7 +486,7 @@ char* thong_ke_theo_tang(void) {
 }
 
 // Hàm thêm dấu chấm phân cách hàng ngàn
-char* format_currency(double amount) {
+char* dinh_dang_tien(double amount) {
     static char buffer[50];
     snprintf(buffer, sizeof(buffer), "%.0f", amount);
 
@@ -500,10 +504,10 @@ char* format_currency(double amount) {
     return g_strdup(formatted);  // Trả về chuỗi đã được cấp phát động
 }
 
-void update_statistics_display() {
+void cap_nhat_hien_thi_thong_ke() {
     int in_count = 0, out_count = 0;
     // Luôn đọc lại doanh thu từ file
-    load_doanh_thu();
+    tai_doanh_thu();
 
     FILE *log = fopen("log.txt", "r");
     if (log) {
@@ -516,7 +520,7 @@ void update_statistics_display() {
     }
 
     char stats[256];
-    char *formatted_doanh_thu = format_currency(doanh_thu);
+    char *formatted_doanh_thu = dinh_dang_tien(doanh_thu);
     snprintf(stats, sizeof(stats),
              "Xe vào: %d\nXe ra: %d\nDoanh thu: %s VND",
              in_count, out_count, formatted_doanh_thu);
@@ -524,24 +528,24 @@ void update_statistics_display() {
     gtk_label_set_text(GTK_LABEL(label_stats), stats);
     g_free(formatted_doanh_thu); // Giải phóng bộ nhớ
 }
-void filter_treeviews(SharedData *shared_data, const char *keyword) {
+void bo_loc_tim_kiem(SharedData *shared_data, const char *keyword) {
     for (int i = 0; i < MAX_TANG; i++) {
         gtk_list_store_clear(shared_data->store_tangs[i]);
     }
 
     GtkTreeIter iter;
-    for (int i = 0; i < num_vehicles; i++) {
-        if (strstr(vehicle_list[i].license_plate, keyword) != NULL) {
-            int f = vehicle_list[i].floor;
+    for (int i = 0; i < so_luong_xe; i++) {
+        if (strstr(danh_sach_xe[i].bien_so_xe, keyword) != NULL) {
+            int f = danh_sach_xe[i].so_tang;
             if (f >= 1 && f <= MAX_TANG) {
                 gtk_list_store_append(shared_data->store_tangs[f - 1], &iter);
-                gtk_list_store_set(shared_data->store_tangs[f - 1], &iter, 0, vehicle_list[i].license_plate, -1);
+                gtk_list_store_set(shared_data->store_tangs[f - 1], &iter, 0, danh_sach_xe[i].bien_so_xe, -1);
             }
         }
     }
 }
 
-void set_default_font_size(int size) {
+void dat_kich_thuoc(int size) {
     GtkCssProvider *provider = gtk_css_provider_new();
     char css[100];
     snprintf(css, sizeof(css), "* { font-size: %dpt; }", size); // Áp dụng cho tất cả widget
@@ -557,8 +561,8 @@ void set_default_font_size(int size) {
     g_object_unref(provider);
 }
 
-static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
-	GtkWidget *label_floor = gtk_label_new("Tầng:");
+static void nhap_bien_so(GtkWidget *widget, gpointer data) {
+	GtkWidget *label_so_tang = gtk_label_new("Tầng:");
 	
     SharedData *info = (SharedData *)data;
 
@@ -578,8 +582,8 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
     GtkWidget *entry_plate = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(entry_plate), "VD: 59A-123.45");
 
-    GtkWidget *entry_floor = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entry_floor), "1");
+    GtkWidget *entry_so_tang = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry_so_tang), "1");
 
     GtkWidget *label_type = gtk_label_new("Loại xe:");
     GtkWidget *combo_type = gtk_combo_box_text_new();
@@ -589,8 +593,8 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
 
     gtk_grid_attach(GTK_GRID(grid), label_plate, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), entry_plate, 1, 0, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), label_floor, 0, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), entry_floor, 1, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), label_so_tang, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), entry_so_tang, 1, 1, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), label_type, 0, 2, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), combo_type, 1, 2, 1, 1);
 
@@ -599,47 +603,49 @@ static void onNhapBienSoXe(GtkWidget *widget, gpointer data) {
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
         const gchar *plate = gtk_entry_get_text(GTK_ENTRY(entry_plate));
-        const gchar *floor_str = gtk_entry_get_text(GTK_ENTRY(entry_floor));
+        const gchar *so_tang_str = gtk_entry_get_text(GTK_ENTRY(entry_so_tang));
         int selected = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_type));
 
-        if (!Check__license_plate(plate)) {
-		    HienThiLoi(parent, "Biển số không hợp lệ!\n"
+        if (!kiem_tra_bien_so(plate)) {
+		    hien_thi_loi(parent, "Biển số không hợp lệ!\n"
 		                       "Định dạng ô tô: XXA-XXX.XX\n"
 		                       "Định dạng xe máy: XX-AX_XXX.XX");
 		} else if ((selected == 0 && strlen(plate) != 12) || (selected == 1 && strlen(plate) != 10)) {
-		    HienThiLoi(parent, "Loại xe không khớp với định dạng biển số!\n"
+		    hien_thi_loi(parent, "Loại xe không khớp với định dạng biển số!\n"
 		                       "Vui lòng chọn đúng loại xe.");
 		} else {
-		    int floor = atoi(floor_str);
-		    if (floor < 1 || floor > MAX_TANG) {
-		        HienThiLoi(parent, "Chỉ chấp nhận tầng từ 1 đến 4.");
-		    } else if (BienSoDaTonTai(plate)) {
-		        HienThiLoi(parent, "Biển số này đã tồn tại!");
+		    int so_tang = atoi(so_tang_str);
+		    if (so_tang < 1 || so_tang > MAX_TANG) {
+		        hien_thi_loi(parent, "Chỉ chấp nhận tầng từ 1 đến 4.");
+		    } else if (bien_so_da_ton_tai(plate)) {
+		        hien_thi_loi(parent, "Biển số này đã tồn tại!");
 		    } else {
-		        vehicle new_vehicle = TaoXeMoi(plate, floor, (selected == 0) ? xe_may : o_to);
-		        vehicle_list[num_vehicles++] = new_vehicle;
+		        vehicle new_vehicle = tao_xe_moi(plate, so_tang, (selected == 0) ? xe_may : o_to);
+		        danh_sach_xe[so_luong_xe++] = new_vehicle;
 		
-		        save_parking_data();
-		        update_vehicle_count_label();
+		        luu_du_lieu_file_parking
+            ();
+		        cap_nhat_nhan_so_luong_xe();
 		        gtk_label_set_text(GTK_LABEL(label_thongke), thong_ke_theo_tang());
 		
 		        GtkTreeIter iter;
-		        gtk_list_store_append(info->store_tangs[floor - 1], &iter);
-		        gtk_list_store_set(info->store_tangs[floor - 1], &iter, 0, plate, -1);
+		        gtk_list_store_append(info->store_tangs[so_tang - 1], &iter);
+		        gtk_list_store_set(info->store_tangs[so_tang - 1], &iter, 0, plate, -1);
 		
-		        log_action(plate, "in", 0);
-		        refresh_history_tab(info);
-		        update_statistics_display();
+		        ghi_nhat_ky(plate, "in", 0);
+		        cap_nhat_tab_lich_su(info);
+		        cap_nhat_hien_thi_thong_ke();
 		
-		        g_print("Xe %s đã thêm vào tầng %d\n", plate, floor);
+		        g_print("Xe %s đã thêm vào tầng %d\n", plate, so_tang);
 		 	}
 		}
     }
-	show_floor_statistics(info);  // info chính là shared_data được truyền vào  // truyền địa chỉ &shared_data (con trỏ)
+	hien_thi_thong_ke_tang
+(info);  // info chính là shared_data được truyền vào  // truyền địa chỉ &shared_data (con trỏ)
     gtk_widget_destroy(dialog);
 }
 
-static void Thaydoi(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data) {
+static void thay_doi(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data) {
     SharedData *info = (SharedData *)user_data;
     GtkTreeModel *model = gtk_tree_view_get_model(tree_view);
     GtkTreeIter iter;
@@ -659,37 +665,37 @@ static void Thaydoi(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
         GtkWidget *entry_plate = gtk_entry_new();
         gtk_entry_set_text(GTK_ENTRY(entry_plate), selected_plate);
 
-        GtkWidget *label_floor = gtk_label_new("Nhập tầng mới (1 đến 4):");
-        GtkWidget *entry_floor = gtk_entry_new();
+        GtkWidget *label_so_tang = gtk_label_new("Nhập tầng mới (1 đến 4):");
+        GtkWidget *entry_so_tang = gtk_entry_new();
 
         GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
         gtk_box_pack_start(GTK_BOX(box), label_plate, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(box), entry_plate, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(box), label_floor, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(box), entry_floor, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), label_so_tang, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), entry_so_tang, FALSE, FALSE, 0);
         gtk_container_add(GTK_CONTAINER(content_area), box);
         gtk_widget_show_all(dialog);
 
         if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
             const gchar *new_plate = gtk_entry_get_text(GTK_ENTRY(entry_plate));
-            const gchar *floor_text = gtk_entry_get_text(GTK_ENTRY(entry_floor));
-            int new_floor = atoi(floor_text);
+            const gchar *so_tang_text = gtk_entry_get_text(GTK_ENTRY(entry_so_tang));
+            int new_so_tang = atoi(so_tang_text);
 
-            if (!Check__license_plate(new_plate)) {
+            if (!kiem_tra_bien_so(new_plate)) {
                 GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
                                                         GTK_BUTTONS_CLOSE, "Biển số không hợp lệ!\nĐịnh dạng: XXA-XXX.XX(oto)\nĐịnh dạng: XX-AX-XXX.XX(xe máy)");
                 gtk_dialog_run(GTK_DIALOG(err));
                 gtk_widget_destroy(err);
-            } else if (new_floor < 1 || new_floor > MAX_TANG) {
+            } else if (new_so_tang < 1 || new_so_tang > MAX_TANG) {
                 GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
                                                         GTK_BUTTONS_CLOSE, "Tầng phải từ 1 đến 4!");
                 gtk_dialog_run(GTK_DIALOG(err));
                 gtk_widget_destroy(err);
             } else {
                 bool is_duplicate = false;
-                for (int i = 0; i < num_vehicles; i++) {
-                    if (strcmp(vehicle_list[i].license_plate, new_plate) == 0 &&
-                        strcmp(vehicle_list[i].license_plate, selected_plate) != 0) {
+                for (int i = 0; i < so_luong_xe; i++) {
+                    if (strcmp(danh_sach_xe[i].bien_so_xe, new_plate) == 0 &&
+                        strcmp(danh_sach_xe[i].bien_so_xe, selected_plate) != 0) {
                         is_duplicate = true;
                         break;
                     }
@@ -702,16 +708,17 @@ static void Thaydoi(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
                     gtk_widget_destroy(err);
                 } else {
                     // Cập nhật dữ liệu
-                    for (int i = 0; i < num_vehicles; i++) {
-                        if (strcmp(vehicle_list[i].license_plate, selected_plate) == 0) {
-                            strncpy(vehicle_list[i].license_plate, new_plate, sizeof(vehicle_list[i].license_plate));
-                            vehicle_list[i].floor = new_floor;
+                    for (int i = 0; i < so_luong_xe; i++) {
+                        if (strcmp(danh_sach_xe[i].bien_so_xe, selected_plate) == 0) {
+                            strncpy(danh_sach_xe[i].bien_so_xe, new_plate, sizeof(danh_sach_xe[i].bien_so_xe));
+                            danh_sach_xe[i].so_tang = new_so_tang;
                             break;
                         }
                     }
 
-                    save_parking_data();
-                    load_treeviews(info);
+                    luu_du_lieu_file_parking
+                ();
+                    tai_cay_xe(info);
 
                     GtkWidget *info_dialog = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL,
                                                                     GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
@@ -727,7 +734,7 @@ static void Thaydoi(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
     }
 }
 
-static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data) {
+static void thanh_toan_va_xoa(GtkWidget *widget, gpointer data) {
     SharedData *info = (SharedData*)data;
     GtkWindow *parent = info->parent_window;
 
@@ -749,7 +756,8 @@ static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data) {
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
         const gchar *plate = gtk_entry_get_text(GTK_ENTRY(entry));
-        int vitri = TimViTriXe(plate);
+        int vitri = tim_vi_tri_xe
+    (plate);
 
         if (vitri == -1) {
             GtkWidget *err = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
@@ -757,25 +765,28 @@ static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data) {
             gtk_dialog_run(GTK_DIALOG(err));
             gtk_widget_destroy(err);
         } else {
-            vehicle *veh = &vehicle_list[vitri];
-            int fee = TinhPhiGuiXe(veh);
-            veh->fee = fee;
-            Cal_total(fee);
-            cap_nhat_doanh_thu_ngay(veh->fee);
+            vehicle *veh = &danh_sach_xe[vitri];
+            int phi = tinh_phi_gui_xe(veh);
+            veh->phi = phi;
+            tinh_tong_doanh_thu(phi);
+            cap_nhat_doanh_thu_ngay(veh->phi);
             hien_thi_doanh_thu_treeview(GTK_TREE_VIEW(treeview_doanh_thu));
-            log_action(plate, "out", fee);
-            HienThiKetQuaThanhToan(parent, veh, fee);
+            ghi_nhat_ky(plate, "out", phi);
+            hien_thi_ket_qua_thanh_toan(parent, veh, phi);
 
-            XoaXeTaiViTri(vitri);
-            save_parking_data();
-            load_treeviews(info); // Cập nhật TreeView
-          	update_vehicle_count_label();
+            xoa_xe_tai_vi_tri(vitri);
+            luu_du_lieu_file_parking
+        ();
+            tai_cay_xe(info); // Cập nhật TreeView
+          	cap_nhat_nhan_so_luong_xe();
           	gtk_label_set_text(GTK_LABEL(label_thongke), thong_ke_theo_tang());
-            refresh_history_tab(info);
-            update_statistics_display();
-			show_floor_statistics(info);
-            save_parking_data();
-            load_treeviews(info); // Cập nhật TreeView
+            cap_nhat_tab_lich_su(info);
+            cap_nhat_hien_thi_thong_ke();
+			hien_thi_thong_ke_tang
+        (info);
+            luu_du_lieu_file_parking
+        ();
+            tai_cay_xe(info); // Cập nhật TreeView
         }
     }
 	
@@ -783,10 +794,10 @@ static void ThanhtoanvaXoa(GtkWidget *widget, gpointer data) {
     
 }
 
-static void on_search_changed(GtkEditable *entry, gpointer user_data) {
+static void tim_kiem(GtkEditable *entry, gpointer user_data) {
     SharedData *shared_data = (SharedData *)user_data;
     const gchar *text = gtk_entry_get_text(GTK_ENTRY(entry));
-    filter_treeviews(shared_data, text);
+    bo_loc_tim_kiem(shared_data, text);
 }
 
 static void activate(GtkApplication *app, gpointer user_data) {
@@ -824,14 +835,14 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *tab_label1 = gtk_label_new("Trang chủ");
     GtkWidget *home_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     GtkWidget *label_welcome = gtk_label_new("Chào mừng đến với hệ thống quản lý bãi giữ xe");
-    GtkWidget *label_fee = gtk_label_new("Phí giữ xe: 5.000 VND (ô tô) || 2.000 VND (xe máy)");
+    GtkWidget *label_phi = gtk_label_new("Phí giữ xe: 5.000 VND (ô tô) || 2.000 VND (xe máy)");
 
     GtkWidget *label_note = gtk_label_new("Phí giữ xe được tính theo giờ.Nếu bạn gửi xe chưa đủ 1 giờ thì vẫn tính tròn là 1 giờ.");
 
     label_vehicle_count = gtk_label_new(NULL);
-	  update_vehicle_count_label();
+	  cap_nhat_nhan_so_luong_xe();
     gtk_box_pack_start(GTK_BOX(home_box), label_welcome, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(home_box), label_fee, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(home_box), label_phi, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_note, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_vehicle_count, FALSE, FALSE, 0);
     GtkWidget *label_thongke = gtk_label_new((const gchar*)thong_ke_theo_tang());
@@ -847,7 +858,7 @@ GtkWidget *tab_content2 = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
 label_stats = gtk_label_new("Đang tải thống kê...");
 gtk_box_pack_start(GTK_BOX(tab_content2), label_stats, FALSE, FALSE, 10);
 
-update_statistics_display();
+cap_nhat_hien_thi_thong_ke();
 
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), tab_content2, tab_label2);
     
@@ -907,20 +918,20 @@ shared_data.parent_window = GTK_WINDOW(window);
 // Nếu cần truyền cửa sổ chính
 shared_data.parent_window = GTK_WINDOW(window);
   // Chỉ nếu bạn dùng trong hàm xử lý
-g_signal_connect(search_entry, "changed", G_CALLBACK(on_search_changed), &shared_data);
+g_signal_connect(search_entry, "changed", G_CALLBACK(tim_kiem), &shared_data);
 
 for (int i = 0; i < MAX_TANG; i++) {
-   g_signal_connect(treeviews[i], "row-activated", G_CALLBACK(Thaydoi), &shared_data);
+   g_signal_connect(treeviews[i], "row-activated", G_CALLBACK(thay_doi), &shared_data);
 }
-load_doanh_thu();
+tai_doanh_thu();
 read_from_file();
-update_vehicle_count_label();
+cap_nhat_nhan_so_luong_xe();
 gtk_label_set_text(GTK_LABEL(label_thongke), thong_ke_theo_tang());
-load_treeviews(&shared_data);
+tai_cay_xe(&shared_data);
 
 // Kết nối nút với callback và truyền shared_data
-g_signal_connect(btn1, "clicked", G_CALLBACK(onNhapBienSoXe), &shared_data);
-g_signal_connect(btn2, "clicked", G_CALLBACK(ThanhtoanvaXoa), &shared_data);    
+g_signal_connect(btn1, "clicked", G_CALLBACK(nhap_bien_so), &shared_data);
+g_signal_connect(btn2, "clicked", G_CALLBACK(thanh_toan_va_xoa), &shared_data);    
 // Thêm notebook vào container chính
 gtk_box_pack_start(GTK_BOX(containerBox), notebook, TRUE, TRUE, 5);
 
@@ -945,7 +956,7 @@ shared_data.history_store = store;
   // Lưu store vào shared_data
 gtk_tree_view_set_model(GTK_TREE_VIEW(history_view), GTK_TREE_MODEL(store));
 g_object_unref(store);
-load_history_data(store);
+tai_du_lieu_lich_su(store);
 
 // Thêm các cột
 const char *titles[] = {"STT", "Biển số xe", "Loại xe", "Trạng thái", "Thời gian", "Chi phí"};
