@@ -61,7 +61,7 @@ void show_payment_result(GtkWindow *parent, const vehicle *veh, int fee);
 static void  pay_and_remove(GtkWidget *widget, gpointer data);
 static void changes(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 bool license_plate_exists(const char *plate);
-vehicle create_new_vehicle(const char *plate, intfloor, VehicleType type);
+vehicle create_new_vehicle(const char *plate, int floor, VehicleType type);
 void show_errori(GtkWindow *parent, const char *msg);
 static void enter_license_plate(GtkWidget *widget, gpointer data);
 int check_license_plate(const char *a);  // Khai báo prototype
@@ -114,7 +114,7 @@ void read_from_file() {
 
     while (fscanf(pt, "%s %d %d-%d-%d %d:%d:%d %d %s",
                   temp.license_plate, &temp.fee,
-                  &year, &mon, &day, &hour, &min, &sec, &temp.so_tang, type_str) == 10) {
+                  &year, &mon, &day, &hour, &min, &sec, &temp.floor, type_str) == 10) {
 
         struct tm tm_time = {0};
         tm_time.tm_year = year - 1900;
@@ -181,7 +181,7 @@ void save_parking_data_to_file() {
                vehicle_list[i].license_plate,
                vehicle_list[i].fee,
                time_str,
-               vehicle_list[i].so_tang,
+               vehicle_list[i].floor,
                type_str);
     }
     fclose(f);
@@ -381,7 +381,7 @@ void load_vehicle_tree(SharedData *shared_data) {
 
     GtkTreeIter iter;
     for (int i = 0; i < num_vehicle; i++) {
-        int f = vehicle_list[i].so_tang;
+        int f = vehicle_list[i].floor;
         if (f >= 1 && f <= MAX_TANG) {
             gtk_list_store_append(shared_data->store_tangs[f - 1], &iter);
             gtk_list_store_set(shared_data->store_tangs[f - 1], &iter, 0, vehicle_list[i].license_plate, -1);
@@ -398,10 +398,10 @@ bool license_plate_exists(const char *plate) {
     return false;
 }
 
-vehicle create_new_vehicle(const char *plate, intfloor, VehicleType type) {
+vehicle create_new_vehicle(const char *plate, int floor, VehicleType type) {
     vehicle v;
     strncpy(v.license_plate, plate, sizeof(v.license_plate));
-    v.so_tang =floor;
+    v.floor =floor;
     v.type = type;
     v.entry_time = time(NULL);
     v.clock_start = clock();
@@ -474,8 +474,8 @@ char* floor_statistics(void) {
     int counts[MAX_TANG] = {0};
     
     for (int i = 0; i < num_vehicle; i++) {
-        if (vehicle_list[i].so_tang >= 1 && vehicle_list[i].so_tang <= MAX_TANG) {
-            counts[vehicle_list[i].so_tang - 1]++;
+        if (vehicle_list[i].floor >= 1 && vehicle_list[i].floor <= MAX_TANG) {
+            counts[vehicle_list[i].floor - 1]++;
         }
     }
     
@@ -537,7 +537,7 @@ void search_filter(SharedData *shared_data, const char *keyword) {
     GtkTreeIter iter;
     for (int i = 0; i < num_vehicle; i++) {
         if (strstr(vehicle_list[i].license_plate, keyword) != NULL) {
-            int f = vehicle_list[i].so_tang;
+            int f = vehicle_list[i].floor;
             if (f >= 1 && f <= MAX_TANG) {
                 gtk_list_store_append(shared_data->store_tangs[f - 1], &iter);
                 gtk_list_store_set(shared_data->store_tangs[f - 1], &iter, 0, vehicle_list[i].license_plate, -1);
@@ -563,7 +563,7 @@ void set_font_size(int size) {
 }
 
 static void enter_license_plate(GtkWidget *widget, gpointer data) {
-	GtkWidget *label_so_tang = gtk_label_new("Tầng:");
+	GtkWidget *label_floor = gtk_label_new("Tầng:");
 	
     SharedData *info = (SharedData *)data;
 
@@ -583,8 +583,8 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
     GtkWidget *entry_plate = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(entry_plate), "VD: 59A-123.45");
 
-    GtkWidget *entry_so_tang = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entry_so_tang), "1");
+    GtkWidget *entry_floor = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry_floor), "1");
 
     GtkWidget *label_type = gtk_label_new("Loại xe:");
     GtkWidget *combo_type = gtk_combo_box_text_new();
@@ -594,8 +594,8 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
 
     gtk_grid_attach(GTK_GRID(grid), label_plate, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), entry_plate, 1, 0, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), label_so_tang, 0, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), entry_so_tang, 1, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), label_floor, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), entry_floor, 1, 1, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), label_type, 0, 2, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), combo_type, 1, 2, 1, 1);
 
@@ -604,7 +604,7 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
         const gchar *plate = gtk_entry_get_text(GTK_ENTRY(entry_plate));
-        const gchar *so_tang_str = gtk_entry_get_text(GTK_ENTRY(entry_so_tang));
+        const gchar *floor_str = gtk_entry_get_text(GTK_ENTRY(entry_floor));
         int selected = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_type));
 
         if (!check_license_plate(plate)) {
@@ -615,8 +615,8 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
 		    show_errori(parent, "Loại xe không khớp với định dạng biển số!\n"
 		                       "Vui lòng chọn đúng loại xe.");
 		} else {
-		    intfloor = atoi(so_tang_str);
-		    if (so_tang < 1 ||floor > MAX_TANG) {
+		    int floor = atoi(floor_str);
+		    if (floor < 1 ||floor > MAX_TANG) {
 		        show_errori(parent, "Chỉ chấp nhận tầng từ 1 đến 4.");
 		    } else if (license_plate_exists(plate)) {
 		        show_errori(parent, "Biển số này đã tồn tại!");
@@ -630,8 +630,8 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
 		        gtk_label_set_text(GTK_LABEL(label_thongke), floor_statistics());
 		
 		        GtkTreeIter iter;
-		        gtk_list_store_append(info->store_tangs[so_tang - 1], &iter);
-		        gtk_list_store_set(info->store_tangs[so_tang - 1], &iter, 0, plate, -1);
+		        gtk_list_store_append(info->store_tangs[floor - 1], &iter);
+		        gtk_list_store_set(info->store_tangs[floor - 1], &iter, 0, plate, -1);
 		
 		        write_log(plate, "in", 0);
 		        update_history_data(info);
@@ -666,28 +666,28 @@ static void changes(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
         GtkWidget *entry_plate = gtk_entry_new();
         gtk_entry_set_text(GTK_ENTRY(entry_plate), selected_plate);
 
-        GtkWidget *label_so_tang = gtk_label_new("Nhập tầng mới (1 đến 4):");
-        GtkWidget *entry_so_tang = gtk_entry_new();
+        GtkWidget *label_floor = gtk_label_new("Nhập tầng mới (1 đến 4):");
+        GtkWidget *entry_floor = gtk_entry_new();
 
         GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
         gtk_box_pack_start(GTK_BOX(box), label_plate, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(box), entry_plate, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(box), label_so_tang, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(box), entry_so_tang, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), label_floor, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), entry_floor, FALSE, FALSE, 0);
         gtk_container_add(GTK_CONTAINER(content_area), box);
         gtk_widget_show_all(dialog);
 
         if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
             const gchar *new_plate = gtk_entry_get_text(GTK_ENTRY(entry_plate));
-            const gchar *so_tang_text = gtk_entry_get_text(GTK_ENTRY(entry_so_tang));
-            int new_so_tang = atoi(so_tang_text);
+            const gchar *floor_text = gtk_entry_get_text(GTK_ENTRY(entry_floor));
+            int new_floor = atoi(floor_text);
 
             if (!check_license_plate(new_plate)) {
                 GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
                                                         GTK_BUTTONS_CLOSE, "Biển số không hợp lệ!\nĐịnh dạng: XXA-XXX.XX(oto)\nĐịnh dạng: XX-AX-XXX.XX(xe máy)");
                 gtk_dialog_run(GTK_DIALOG(err));
                 gtk_widget_destroy(err);
-            } else if (new_so_tang < 1 || new_so_tang > MAX_TANG) {
+            } else if (new_floor < 1 || new_floor > MAX_TANG) {
                 GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
                                                         GTK_BUTTONS_CLOSE, "Tầng phải từ 1 đến 4!");
                 gtk_dialog_run(GTK_DIALOG(err));
@@ -712,7 +712,7 @@ static void changes(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
                     for (int i = 0; i < num_vehicle; i++) {
                         if (strcmp(vehicle_list[i].license_plate, selected_plate) == 0) {
                             strncpy(vehicle_list[i].license_plate, new_plate, sizeof(vehicle_list[i].license_plate));
-                            vehicle_list[i].so_tang = new_so_tang;
+                            vehicle_list[i].floor = new_floor;
                             break;
                         }
                     }
@@ -807,6 +807,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *button_box;
     GtkWidget *label;
     GtkWidget *containerBox;
+    //Cỡ chữ mặc định cho chương trình
+    set_font_size(16); 
     //thống kê theo tầng
     label_thongke = gtk_label_new((const gchar*)floor_statistics());
     // Tạo cửa sổ chính
