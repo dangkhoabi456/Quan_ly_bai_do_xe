@@ -806,6 +806,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *button_box;
     GtkWidget *label;
     GtkWidget *containerBox;
+    //Cỡ chữ mặc định cho chương trình
+    dat_kich_thuoc(16); 
     //thống kê theo tầng
     label_thongke = gtk_label_new((const gchar*)thong_ke_theo_tang());
     // Tạo cửa sổ chính
