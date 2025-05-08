@@ -563,12 +563,10 @@ void set_font_size(int size) {
 }
 
 static void enter_license_plate(GtkWidget *widget, gpointer data) {
-	GtkWidget *label_floor = gtk_label_new("Tầng:");
-	
     SharedData *info = (SharedData *)data;
-
     GtkWindow *parent = info->parent_window;
 
+    // Tạo hộp thoại nhập thông tin xe
     GtkWidget *dialog = gtk_dialog_new_with_buttons("Nhập thông tin xe", parent,
                                                     GTK_DIALOG_MODAL,
                                                     "_OK", GTK_RESPONSE_OK,
@@ -579,10 +577,12 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
     gtk_grid_set_row_spacing(GTK_GRID(grid), 5);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 5);
 
+    // Các widget nhập liệu
     GtkWidget *label_plate = gtk_label_new("Biển số:");
     GtkWidget *entry_plate = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(entry_plate), "VD: 59A-123.45");
 
+    GtkWidget *label_floor = gtk_label_new("Tầng:");
     GtkWidget *entry_floor = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(entry_floor), "1");
 
@@ -590,8 +590,9 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
     GtkWidget *combo_type = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_type), "Xe máy");
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_type), "Ô tô");
-    gtk_combo_box_set_active(GTK_COMBO_BOX(combo_type), 0);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(combo_type), 0); // Mặc định chọn "Xe máy"
 
+    // Sắp xếp các widget trên lưới
     gtk_grid_attach(GTK_GRID(grid), label_plate, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), entry_plate, 1, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), label_floor, 0, 1, 1, 1);
@@ -605,63 +606,81 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
         const gchar *plate = gtk_entry_get_text(GTK_ENTRY(entry_plate));
         const gchar *floor_str = gtk_entry_get_text(GTK_ENTRY(entry_floor));
-        int selected = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_type));
+        int selected = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_type)); // 0 = Xe máy, 1 = Ô tô
 
+        // Kiểm tra định dạng biển số
         if (!check_license_plate(plate)) {
-		    show_errori(parent, "Biển số không hợp lệ!\n"
-		                       "Định dạng ô tô: XXA-XXX.XX\n"
-		                       "Định dạng xe máy: XX-AX_XXX.XX");
-		} else if ((selected == 0 && strlen(plate) != 12) || (selected == 1 && strlen(plate) != 10)) {
-		    show_errori(parent, "Loại xe không khớp với định dạng biển số!\n"
-		                       "Vui lòng chọn đúng loại xe.");
-		} else {
-		    int floor = atoi(floor_str);
-		    if (floor < 1 ||floor > MAX_TANG) {
-		        show_errori(parent, "Chỉ chấp nhận tầng từ 1 đến 4.");
-		    } else if (license_plate_exists(plate)) {
-		        show_errori(parent, "Biển số này đã tồn tại!");
-		    } else {
-		        vehicle new_vehicle = create_new_vehicle(plate,floor, (selected == 0) ? xe_may : o_to);
-		        vehicle_list[num_vehicle++] = new_vehicle;
-		
-		        save_parking_data_to_file
-            ();
-		        update_vehicle_count_label();
-		        gtk_label_set_text(GTK_LABEL(label_thongke), floor_statistics());
-		
-		        GtkTreeIter iter;
-		        gtk_list_store_append(info->store_tangs[floor - 1], &iter);
-		        gtk_list_store_set(info->store_tangs[floor - 1], &iter, 0, plate, -1);
-		
-		        write_log(plate, "in", 0);
-		        update_history_data(info);
-		        update_statistics_display();
-		
-		        g_print("Xe %s đã thêm vào tầng %d\n", plate,floor);
-		 	}
-		}
+            show_errori(parent, "Biển số không hợp lệ!\n"
+                                "Định dạng ô tô: XXA-XXX.XX\n"
+                                "Định dạng xe máy: XX-AX-XXX.XX");
+        }
+        // Kiểm tra loại xe khớp với độ dài biển số
+        else if ((selected == 0 && strlen(plate) != 12) || (selected == 1 && strlen(plate) != 10)) {
+            show_errori(parent, "Loại xe không khớp với định dạng biển số!\nVui lòng chọn đúng loại xe.");
+        }
+        else {
+            int floor = atoi(floor_str);
+            if (floor < 1 || floor > MAX_TANG) {
+                show_errori(parent, "Chỉ chấp nhận tầng từ 1 đến 4.");
+            }
+            else if (license_plate_exists(plate)) {
+                show_errori(parent, "Biển số này đã tồn tại!");
+            }
+            else {
+                // Tạo mới xe và lưu vào danh sách
+                vehicle new_vehicle = create_new_vehicle(plate, floor, (selected == 0) ? xe_may : o_to);
+                vehicle_list[num_vehicle++] = new_vehicle;
+
+                // Ghi file và cập nhật giao diện
+                save_parking_data_to_file();
+                update_vehicle_count_label();
+                gtk_label_set_text(GTK_LABEL(label_thongke), floor_statistics());
+
+                // Thêm vào TreeView của tầng tương ứng
+                GtkTreeIter iter;
+                gtk_list_store_append(info->store_tangs[floor - 1], &iter);
+                gtk_list_store_set(info->store_tangs[floor - 1], &iter, 0, plate, -1);
+
+                // Ghi log và cập nhật thống kê
+                write_log(plate, "in", 0);
+                update_history_data(info);
+                update_statistics_display();
+
+                g_print("Xe %s đã thêm vào tầng %d\n", plate, floor);
+            }
+        }
     }
-	show_floor_statistics
-(info);  // info chính là shared_data được truyền vào  // truyền địa chỉ &shared_data (con trỏ)
+
+    // Hiển thị thống kê tầng sau khi thêm
+    show_floor_statistics(info);
     gtk_widget_destroy(dialog);
 }
 
+
+// Hàm xử lý thay đổi thông tin xe khi người dùng chỉnh sửa trên TreeView
 static void changes(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data) {
     SharedData *info = (SharedData *)user_data;
     GtkTreeModel *model = gtk_tree_view_get_model(tree_view);
     GtkTreeIter iter;
 
     if (gtk_tree_model_get_iter(model, &iter, path)) {
+        // Lấy biển số xe từ dòng được chọn
         char *selected_plate;
-        gtk_tree_model_get(model, &iter, 0, &selected_plate, -1);  // Cột 0 là biển số xe
+        gtk_tree_model_get(model, &iter, 0, &selected_plate, -1);  // Cột 0 là biển số
 
-        GtkWidget *dialog = gtk_dialog_new_with_buttons("Thay đổi thông tin xe",
-                                                        info->parent_window,
-                                                        GTK_DIALOG_MODAL,
-                                                        "_OK", GTK_RESPONSE_OK,
-                                                        "_Hủy", GTK_RESPONSE_CANCEL, NULL);
+        // Tạo hộp thoại để nhập thông tin mới
+        GtkWidget *dialog = gtk_dialog_new_with_buttons(
+            "Thay đổi thông tin xe",
+            info->parent_window,
+            GTK_DIALOG_MODAL,
+            "_OK", GTK_RESPONSE_OK,
+            "_Hủy", GTK_RESPONSE_CANCEL,
+            NULL
+        );
+
         GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
+        // Tạo các thành phần nhập dữ liệu
         GtkWidget *label_plate = gtk_label_new("Nhập biển số mới:");
         GtkWidget *entry_plate = gtk_entry_new();
         gtk_entry_set_text(GTK_ENTRY(entry_plate), selected_plate);
@@ -682,17 +701,28 @@ static void changes(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
             const gchar *floor_text = gtk_entry_get_text(GTK_ENTRY(entry_floor));
             int new_floor = atoi(floor_text);
 
+            // Kiểm tra tính hợp lệ của biển số
             if (!check_license_plate(new_plate)) {
-                GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
-                                                        GTK_BUTTONS_CLOSE, "Biển số không hợp lệ!\nĐịnh dạng: XXA-XXX.XX(oto)\nĐịnh dạng: XX-AX-XXX.XX(xe máy)");
+                GtkWidget *err = gtk_message_dialog_new(
+                    info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                    GTK_BUTTONS_CLOSE, "Biển số không hợp lệ!\n"
+                    "Định dạng ô tô: XXA-XXX.XX\n"
+                    "Định dạng xe máy: XX-AX-XXX.XX"
+                );
                 gtk_dialog_run(GTK_DIALOG(err));
                 gtk_widget_destroy(err);
-            } else if (new_floor < 1 || new_floor > MAX_TANG) {
-                GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
-                                                        GTK_BUTTONS_CLOSE, "Tầng phải từ 1 đến 4!");
+            }
+            // Kiểm tra tầng có hợp lệ không
+            else if (new_floor < 1 || new_floor > MAX_TANG) {
+                GtkWidget *err = gtk_message_dialog_new(
+                    info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                    GTK_BUTTONS_CLOSE, "Tầng phải từ 1 đến 4!"
+                );
                 gtk_dialog_run(GTK_DIALOG(err));
                 gtk_widget_destroy(err);
-            } else {
+            }
+            else {
+                // Kiểm tra biển số mới có trùng với xe khác không
                 bool is_duplicate = false;
                 for (int i = 0; i < num_vehicle; i++) {
                     if (strcmp(vehicle_list[i].license_plate, new_plate) == 0 &&
@@ -703,283 +733,307 @@ static void changes(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
                 }
 
                 if (is_duplicate) {
-                    GtkWidget *err = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
-                                                            GTK_BUTTONS_CLOSE, "Biển số đã tồn tại!");
+                    GtkWidget *err = gtk_message_dialog_new(
+                        info->parent_window, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                        GTK_BUTTONS_CLOSE, "Biển số đã tồn tại!"
+                    );
                     gtk_dialog_run(GTK_DIALOG(err));
                     gtk_widget_destroy(err);
-                } else {
-                    // Cập nhật dữ liệu
+                }
+                else {
+                    // Tìm và cập nhật dữ liệu xe tương ứng
                     for (int i = 0; i < num_vehicle; i++) {
                         if (strcmp(vehicle_list[i].license_plate, selected_plate) == 0) {
-                            strncpy(vehicle_list[i].license_plate, new_plate, sizeof(vehicle_list[i].license_plate));
+                            strncpy(vehicle_list[i].license_plate, new_plate, sizeof(vehicle_list[i].license_plate) - 1);
+                            vehicle_list[i].license_plate[sizeof(vehicle_list[i].license_plate) - 1] = '\0';
                             vehicle_list[i].floor = new_floor;
                             break;
                         }
                     }
 
-                    save_parking_data_to_file
-                ();
+                    // Lưu thay đổi và cập nhật giao diện
+                    save_parking_data_to_file();
                     load_vehicle_tree(info);
 
-                    GtkWidget *info_dialog = gtk_message_dialog_new(info->parent_window, GTK_DIALOG_MODAL,
-                                                                    GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
-                                                                    "Đã thay đổi thông tin xe thành công!");
+                    GtkWidget *info_dialog = gtk_message_dialog_new(
+                        info->parent_window, GTK_DIALOG_MODAL,
+                        GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+                        "Đã thay đổi thông tin xe thành công!"
+                    );
                     gtk_dialog_run(GTK_DIALOG(info_dialog));
                     gtk_widget_destroy(info_dialog);
                 }
             }
         }
 
+        // Dọn dẹp
         gtk_widget_destroy(dialog);
         g_free(selected_plate);
     }
 }
 
-static void  pay_and_remove(GtkWidget *widget, gpointer data) {
-    SharedData *info = (SharedData*)data;
+// Hàm xử lý khi người dùng nhấn nút "Xóa và Thanh toán"
+static void pay_and_remove(GtkWidget *widget, gpointer data) {
+    // Lấy dữ liệu dùng chung từ tham số truyền vào
+    SharedData *info = (SharedData *)data;
     GtkWindow *parent = info->parent_window;
 
-    GtkWidget *dialog = gtk_dialog_new_with_buttons("Thanh toán & Xóa xe",
-                                                    parent, GTK_DIALOG_MODAL,
-                                                    "_OK", GTK_RESPONSE_OK,
-                                                    "_Hủy", GTK_RESPONSE_CANCEL, NULL);
+    // Tạo hộp thoại nhập biển số xe cần thanh toán
+    GtkWidget *dialog = gtk_dialog_new_with_buttons(
+        "Thanh toán & Xóa xe",
+        parent,
+        GTK_DIALOG_MODAL,
+        "_OK", GTK_RESPONSE_OK,
+        "_Hủy", GTK_RESPONSE_CANCEL,
+        NULL
+    );
 
+    // Lấy vùng nội dung của dialog
     GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+
+    // Tạo nhãn và ô nhập biển số
     GtkWidget *label = gtk_label_new("Nhập biển số xe:");
     GtkWidget *entry = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "VD: 59A-123.45");
 
+    // Tạo một box dọc để chứa nhãn và ô nhập
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(content_area), box);
     gtk_widget_show_all(dialog);
 
+    // Khi người dùng nhấn "OK"
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
         const gchar *plate = gtk_entry_get_text(GTK_ENTRY(entry));
-        int vitri = find_vehicle_index
-    (plate);
+
+        // Tìm vị trí của xe trong danh sách
+        int vitri = find_vehicle_index(plate);
 
         if (vitri == -1) {
-            GtkWidget *err = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
-                                                    GTK_BUTTONS_CLOSE, "Không tìm thấy xe!");
+            // Nếu không tìm thấy, hiện thông báo lỗi
+            GtkWidget *err = gtk_message_dialog_new(
+                parent, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                GTK_BUTTONS_CLOSE, "Không tìm thấy xe!"
+            );
             gtk_dialog_run(GTK_DIALOG(err));
             gtk_widget_destroy(err);
         } else {
+            // Nếu tìm thấy, tiến hành xử lý thanh toán
             vehicle *veh = &vehicle_list[vitri];
+
+            // Tính phí giữ xe
             int fee = calculate_parking_fee(veh);
             veh->fee = fee;
+
+            // Cập nhật doanh thu
             calculate_total_revenue(fee);
-            update_daily_revenue(veh->fee);
+            update_daily_revenue(fee);
             display_revenue_treeview(GTK_TREE_VIEW(treeview_revenue));
+
+            // Ghi nhật ký thanh toán
             write_log(plate, "out", fee);
+
+            // Hiển thị kết quả thanh toán cho người dùng
             show_payment_result(parent, veh, fee);
 
+            // Xóa xe khỏi danh sách đang gửi
             remove_vehicle_at_index(vitri);
-            save_parking_data_to_file
-        ();
-            load_vehicle_tree(info); // Cập nhật TreeView
-          	update_vehicle_count_label();
-          	gtk_label_set_text(GTK_LABEL(label_thongke), floor_statistics());
+
+            // Lưu dữ liệu bãi xe sau khi cập nhật
+            save_parking_data_to_file();
+
+            // Cập nhật TreeView trong giao diện
+            load_vehicle_tree(info);
+
+            // Cập nhật tổng số lượng xe
+            update_vehicle_count_label();
+
+            // Cập nhật thống kê theo tầng
+            gtk_label_set_text(GTK_LABEL(label_thongke), floor_statistics());
+            show_floor_statistics(info);
+
+            // Cập nhật tab lịch sử giữ xe
             update_history_data(info);
+
+            // Cập nhật thống kê tổng hợp
             update_statistics_display();
-			show_floor_statistics
-        (info);
-            save_parking_data_to_file
-        ();
-            load_vehicle_tree(info); // Cập nhật TreeView
         }
     }
-	
+
+    // Hủy dialog sau khi hoàn tất
     gtk_widget_destroy(dialog);
-    
 }
 
+// Callback khi người dùng thay đổi nội dung trong ô tìm kiếm
 static void search(GtkEditable *entry, gpointer user_data) {
+    // Ép kiểu dữ liệu con trỏ người dùng sang kiểu SharedData
     SharedData *shared_data = (SharedData *)user_data;
+
+    // Lấy nội dung văn bản hiện tại trong ô tìm kiếm
     const gchar *text = gtk_entry_get_text(GTK_ENTRY(entry));
+
+    // Gọi hàm lọc tìm kiếm, truyền dữ liệu dùng chung và từ khóa
     search_filter(shared_data, text);
 }
 
 static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window;
-    GtkWidget *button;
-    GtkWidget *button_box;
-    GtkWidget *label;
     GtkWidget *containerBox;
-    //Cỡ chữ mặc định cho chương trình
 
-
+    // Thiết lập cỡ chữ mặc định cho toàn bộ giao diện
     set_font_size(16); 
 
-
-    //thống kê theo tầng
-    label_thongke = gtk_label_new((const gchar*)floor_statistics());
     // Tạo cửa sổ chính
     window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "Quản lý bãi giữ xe");
     gtk_window_set_default_size(GTK_WINDOW(window), 1920, 1080);
 
-    // Tạo hộp chứa theo chiều dọc
+    // Hộp chứa chính theo chiều dọc
     containerBox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 
-    // ==== TẠO VÀ THÊM 3 NÚT GÓC TRÊN PHẢI ====
+    // === TẠO 2 NÚT GÓC TRÊN PHẢI: Thêm và Xóa/Thanh toán ===
     GtkWidget *top_right_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-
     GtkWidget *btn1 = gtk_button_new_with_label("Thêm");
     GtkWidget *btn2 = gtk_button_new_with_label("Xóa và Thanh toán");
-
     gtk_box_pack_start(GTK_BOX(top_right_box), btn1, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(top_right_box), btn2, FALSE, FALSE, 0);
- 
     gtk_widget_set_halign(top_right_box, GTK_ALIGN_END);
     gtk_box_pack_start(GTK_BOX(containerBox), top_right_box, FALSE, FALSE, 5);
 
-       // ==== TẠO NOTEBOOK (CÁC TAB) ====
+    // === TẠO NOTEBOOK CHỨA CÁC TAB ===
     GtkWidget *notebook = gtk_notebook_new();
 
-    // === TAB 1: Trang chủ ===
+    // === TAB 1: TRANG CHỦ ===
     GtkWidget *tab_label1 = gtk_label_new("Trang chủ");
     GtkWidget *home_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     GtkWidget *label_welcome = gtk_label_new("Chào mừng đến với hệ thống quản lý bãi giữ xe");
     GtkWidget *label_fee = gtk_label_new("Phí giữ xe: 5.000 VND (ô tô) || 2.000 VND (xe máy)");
-
-    GtkWidget *label_note = gtk_label_new("Phí giữ xe được tính theo giờ.Nếu bạn gửi xe chưa đủ 1 giờ thì vẫn tính tròn là 1 giờ.");
-
+    GtkWidget *label_note = gtk_label_new("Phí giữ xe được tính theo giờ. Nếu bạn gửi xe chưa đủ 1 giờ thì vẫn tính tròn là 1 giờ.");
     label_vehicle_count = gtk_label_new(NULL);
-	  update_vehicle_count_label();
+    update_vehicle_count_label();  // Cập nhật số lượng xe đang gửi
+
+    // Gán thống kê theo tầng vào label
+    GtkWidget *label_thongke = gtk_label_new((const gchar*)floor_statistics());
+    shared_data.home_stat_label = label_thongke;
+
+    // Thêm vào giao diện Trang chủ
     gtk_box_pack_start(GTK_BOX(home_box), label_welcome, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_fee, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_note, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_vehicle_count, FALSE, FALSE, 0);
-    GtkWidget *label_thongke = gtk_label_new((const gchar*)floor_statistics());
-	shared_data.home_stat_label = label_thongke;    // nếu dùng biến struct
-	gtk_box_pack_start(GTK_BOX(home_box), label_thongke, FALSE, FALSE, 10);
-    // Gắn box vào tab Trang chủ
+    gtk_box_pack_start(GTK_BOX(home_box), label_thongke, FALSE, FALSE, 10);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), home_box, tab_label1);
 
-    // === TAB 2: Thống kê ===
+    // === TAB 2: THỐNG KÊ ===
     GtkWidget *tab_label2 = gtk_label_new("Thống kê");
-GtkWidget *tab_content2 = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-
-label_stats = gtk_label_new("Đang tải thống kê...");
-gtk_box_pack_start(GTK_BOX(tab_content2), label_stats, FALSE, FALSE, 10);
-
-update_statistics_display();
-
+    GtkWidget *tab_content2 = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    label_stats = gtk_label_new("Đang tải thống kê...");
+    gtk_box_pack_start(GTK_BOX(tab_content2), label_stats, FALSE, FALSE, 10);
+    update_statistics_display();  // Hàm cập nhật dữ liệu thống kê
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), tab_content2, tab_label2);
-    
-    // === TAB 3: Bãi xe ===
-GtkWidget *tab_label3 = gtk_label_new("Bãi xe");
 
-	//=== TAB 4: Doanh thu ===
-GtkWidget *tab_revenue = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-treeview_revenue = gtk_tree_view_new();
+    // === TAB 3: BÃI XE ===
+    GtkWidget *tab_label3 = gtk_label_new("Bãi xe");
+    GtkWidget *bai_xe_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 
-gtk_box_pack_start(GTK_BOX(tab_revenue), treeview_revenue, TRUE, TRUE, 0);
-display_revenue_treeview(GTK_TREE_VIEW(treeview_revenue));
+    // Ô tìm kiếm biển số
+    GtkWidget *search_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(search_entry), "Tìm biển số xe...");
+    gtk_box_pack_start(GTK_BOX(bai_xe_vbox), search_entry, FALSE, FALSE, 0);
 
-gtk_notebook_append_page(GTK_NOTEBOOK(notebook), tab_revenue, gtk_label_new("Doanh thu"));
-// Tạo notebook con để chứa các tầng
-GtkWidget *nested_notebook = gtk_notebook_new();
-GtkWidget *bai_xe_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    // Tạo notebook con chứa các tầng
+    GtkWidget *nested_notebook = gtk_notebook_new();
+    GtkListStore *store_tangs[MAX_TANG];
+    GtkWidget *treeviews[MAX_TANG];
 
-// Thanh tìm kiếm
-GtkWidget *search_entry = gtk_entry_new();
-gtk_entry_set_placeholder_text(GTK_ENTRY(search_entry), "Tìm biển số xe...");
-gtk_box_pack_start(GTK_BOX(bai_xe_vbox), search_entry, FALSE, FALSE, 0);
-GtkListStore *store_tangs[MAX_TANG];
-GtkWidget *treeviews[MAX_TANG];
+    for (int i = 0; i < MAX_TANG; i++) {
+        char tab_name[20];
+        snprintf(tab_name, sizeof(tab_name), "Tầng %d", i + 1);
+        GtkWidget *tab_label = gtk_label_new(tab_name);
 
-for (int i = 0; i < MAX_TANG; i++) {
-    char tab_name[20];
-    snprintf(tab_name, sizeof(tab_name), "Tầng %d", i + 1);
-    GtkWidget *tab_label = gtk_label_new(tab_name);
+        // Tạo store và treeview cho từng tầng
+        store_tangs[i] = gtk_list_store_new(1, G_TYPE_STRING);
+        GtkWidget *treeview = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store_tangs[i]));
+        treeviews[i] = treeview;
 
-    store_tangs[i] = gtk_list_store_new(1, G_TYPE_STRING);
-    GtkWidget *treeview = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store_tangs[i]));
-    treeviews[i] = treeview;
+        GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+        GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes("Biển số xe", renderer, "text", 0, NULL);
+        gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
-    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
-    GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes("Biển số xe", renderer, "text", 0, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
+        GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
+        gtk_container_add(GTK_CONTAINER(scroll), treeview);
+        gtk_widget_set_vexpand(scroll, TRUE);
+        gtk_widget_set_hexpand(scroll, TRUE);
 
-    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
-    gtk_container_add(GTK_CONTAINER(scroll), treeview);
-    gtk_widget_set_vexpand(scroll, TRUE);
-    gtk_widget_set_hexpand(scroll, TRUE);
+        gtk_notebook_append_page(GTK_NOTEBOOK(nested_notebook), scroll, tab_label);
+    }
 
-    gtk_notebook_append_page(GTK_NOTEBOOK(nested_notebook), scroll, tab_label);
+    // Gắn treeview từng tầng vào notebook
+    gtk_box_pack_start(GTK_BOX(bai_xe_vbox), nested_notebook, TRUE, TRUE, 0);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), bai_xe_vbox, tab_label3);
+
+    // Lưu trữ store tầng vào shared_data
+    for (int i = 0; i < MAX_TANG; i++) {
+        shared_data.store_tangs[i] = store_tangs[i];
+    }
+    shared_data.parent_window = GTK_WINDOW(window);
+
+    // Gắn callback tìm kiếm
+    g_signal_connect(search_entry, "changed", G_CALLBACK(search), &shared_data);
+
+    // Gắn callback khi nhấn 2 lần vào xe trong treeview
+    for (int i = 0; i < MAX_TANG; i++) {
+        g_signal_connect(treeviews[i], "row-activated", G_CALLBACK(changes), &shared_data);
+    }
+
+    // === TAB 4: DOANH THU ===
+    GtkWidget *tab_revenue = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    treeview_revenue = gtk_tree_view_new();
+    gtk_box_pack_start(GTK_BOX(tab_revenue), treeview_revenue, TRUE, TRUE, 0);
+    display_revenue_treeview(GTK_TREE_VIEW(treeview_revenue));
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), tab_revenue, gtk_label_new("Doanh thu"));
+
+    // === TAB 5: LỊCH SỬ GIỮ XE ===
+    GtkWidget *scrolled_history = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_history), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+    GtkWidget *history_view = gtk_tree_view_new();
+    gtk_container_add(GTK_CONTAINER(scrolled_history), history_view);
+
+    GtkListStore *store = gtk_list_store_new(6, G_TYPE_INT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    gtk_tree_view_set_model(GTK_TREE_VIEW(history_view), GTK_TREE_MODEL(store));
+    g_object_unref(store);
+    shared_data.history_store = store;
+    load_history_data(store);
+
+    // Thêm cột vào TreeView lịch sử
+    const char *titles[] = {"STT", "Biển số xe", "Loại xe", "Trạng thái", "Thời gian", "Chi phí"};
+    for (int i = 0; i < 6; i++) {
+        GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+        GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(titles[i], renderer, "text", i, NULL);
+        gtk_tree_view_append_column(GTK_TREE_VIEW(history_view), column);
+    }
+
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_history, gtk_label_new("Lịch sử giữ xe"));
+
+    // Đọc dữ liệu từ file
+    load_revenue();
+    read_from_file();
+    update_vehicle_count_label();
+    gtk_label_set_text(GTK_LABEL(label_thongke), floor_statistics());
+    load_vehicle_tree(&shared_data);
+
+    // Gắn callback cho nút Thêm và Thanh toán
+    g_signal_connect(btn1, "clicked", G_CALLBACK(enter_license_plate), &shared_data);
+    g_signal_connect(btn2, "clicked", G_CALLBACK(pay_and_remove), &shared_data);
+
+    // Thêm notebook vào cửa sổ chính và hiển thị
+    gtk_box_pack_start(GTK_BOX(containerBox), notebook, TRUE, TRUE, 5);
+    gtk_container_add(GTK_CONTAINER(window), containerBox);
+    gtk_widget_show_all(window);
 }
 
-// Cuối cùng: Thêm notebook con vào tab chính "Bãi xe"
-gtk_box_pack_start(GTK_BOX(bai_xe_vbox), nested_notebook, TRUE, TRUE, 0);
-gtk_notebook_append_page(GTK_NOTEBOOK(notebook), bai_xe_vbox, tab_label3);
-
-
-for (int i = 0; i < MAX_TANG; i++) {
-   shared_data.store_tangs[i] = store_tangs[i];
-}
-shared_data.parent_window = GTK_WINDOW(window);
-
-// Nếu cần truyền cửa sổ chính
-shared_data.parent_window = GTK_WINDOW(window);
-  // Chỉ nếu bạn dùng trong hàm xử lý
-g_signal_connect(search_entry, "changed", G_CALLBACK(search), &shared_data);
-
-for (int i = 0; i < MAX_TANG; i++) {
-   g_signal_connect(treeviews[i], "row-activated", G_CALLBACK(changes), &shared_data);
-}
-load_revenue();
-read_from_file();
-update_vehicle_count_label();
-gtk_label_set_text(GTK_LABEL(label_thongke), floor_statistics());
-load_vehicle_tree(&shared_data);
-
-// Kết nối nút với callback và truyền shared_data
-g_signal_connect(btn1, "clicked", G_CALLBACK(enter_license_plate), &shared_data);
-g_signal_connect(btn2, "clicked", G_CALLBACK( pay_and_remove), &shared_data);    
-// Thêm notebook vào container chính
-gtk_box_pack_start(GTK_BOX(containerBox), notebook, TRUE, TRUE, 5);
-
-// Tạo scrolled window chứa bảng lịch sử
-GtkWidget *scrolled_history = gtk_scrolled_window_new(NULL, NULL);
-gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_history), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-
-// Tạo TreeView
-GtkWidget *history_view = gtk_tree_view_new();
-gtk_container_add(GTK_CONTAINER(scrolled_history), history_view);
-
-// Tạo model cho TreeView
-GtkListStore *store = gtk_list_store_new(6,
-    G_TYPE_INT,     // STT
-    G_TYPE_STRING,  // Biển số xe
-    G_TYPE_STRING,  // Loại xe
-    G_TYPE_STRING,  // Trạng thái (Vào/Ra)
-    G_TYPE_STRING,  // Thời gian
-    G_TYPE_STRING   // Chi phí giữ xe
-);
-shared_data.history_store = store;
-  // Lưu store vào shared_data
-gtk_tree_view_set_model(GTK_TREE_VIEW(history_view), GTK_TREE_MODEL(store));
-g_object_unref(store);
-load_history_data(store);
-
-// Thêm các cột
-const char *titles[] = {"STT", "Biển số xe", "Loại xe", "Trạng thái", "Thời gian", "Chi phí"};
-for (int i = 0; i < 6; i++) {
-    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
-    GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(titles[i], renderer, "text", i, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(history_view), column);
-}
-// Thêm tab vào notebook
-gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_history, gtk_label_new("Lịch sử giữ xe"));
-
-// Thêm vào cửa sổ & hiển thị
-gtk_container_add(GTK_CONTAINER(window), containerBox);
-gtk_widget_show_all(window);
-
-}
 
 int main(int argc, char **argv) {
     GtkApplication *app;
