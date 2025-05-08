@@ -49,7 +49,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_box_pack_start(GTK_BOX(home_box), label_fee, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_note, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(home_box), label_vehicle_count, FALSE, FALSE, 0);
-    GtkWidget *label_thongke = gtk_label_new((const gchar*)floor_statistics());
+    label_thongke = gtk_label_new((const gchar*)floor_statistics());
 	shared_data.home_stat_label = label_thongke;    // nếu dùng biến struct
 	gtk_box_pack_start(GTK_BOX(home_box), label_thongke, FALSE, FALSE, 10);
     // Gắn box vào tab Trang chủ
