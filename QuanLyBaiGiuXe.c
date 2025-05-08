@@ -612,7 +612,7 @@ static void enter_license_plate(GtkWidget *widget, gpointer data) {
         if (!check_license_plate(plate)) {
             show_errori(parent, "Biển số không hợp lệ!\n"
                                 "Định dạng ô tô: XXA-XXX.XX\n"
-                                "Định dạng xe máy: XX-AX-XXX.XX");
+                                "Định dạng xe máy: XX-AX_XXX.XX");
         }
         // Kiểm tra loại xe khớp với độ dài biển số
         else if ((selected == 0 && strlen(plate) != 12) || (selected == 1 && strlen(plate) != 10)) {
@@ -914,7 +914,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     update_vehicle_count_label();  // Cập nhật số lượng xe đang gửi
 
     // Gán thống kê theo tầng vào label
-    GtkWidget *label_thongke = gtk_label_new((const gchar*)floor_statistics());
+    label_thongke = gtk_label_new((const gchar*)floor_statistics());
     shared_data.home_stat_label = label_thongke;
 
     // Thêm vào giao diện Trang chủ
